@@ -54,109 +54,80 @@ def create_corpus(word_count):
     
     return vocab, id_to_token, corpus
 
-
-def _find_most_frequent_pair_shard(corpus):
+def build_index(corpus):
+    pair_to_words = {}
     pair_counts = {}
 
-    for ids, freq in corpus:
-        if len(ids) < 2:
-            continue
-        prev = ids[0]
-        for cur in ids[1:]:
-            pair = (prev, cur)
-            pair_counts[pair] = pair_counts.get(pair, 0) + freq
-            prev = cur
+    for i, (ids, freq) in enumerate(corpus):
+        for pair, mult in Counter(zip(ids, ids[1:])).items():
+            pair_counts[pair] = pair_counts.get(pair, 0) + mult * freq
+            pair_to_words.setdefault(pair, set()).add(i)
 
-    if not pair_counts:
-        return None
+    return pair_to_words, pair_counts
 
-    best_pair = None
-    best_count = -1
-    for pair, cnt in pair_counts.items():
-        if cnt > best_count:
-            best_pair, best_count = pair, cnt
-
-    return best_pair, best_count
-
-
-def find_most_frequent_pair_parallel(pool, corpus, chunk_size=10000):
-    shards = [
-        corpus[i : i + chunk_size]
-        for i in range(0, len(corpus), chunk_size)
-    ]
-
-    best_pair = None
-    best_count = -1
-
-    for result in pool.map(_find_most_frequent_pair_shard, shards):
-        if result is None:
-            continue
-
-        pair, count = result
-
-        if (
-            best_pair is None
-            or count > best_count
-            or (count == best_count and pair < best_pair)
-        ):
-            best_pair, best_count = pair, count
-
-    return best_pair
-
-def _apply_merge_shard(args):
-    shard, left, right, new_id = args
+def _merge_ids(ids, left, right, new_id):
     out = []
-
-    for ids, freq in shard:
-        new_ids = []
-        i = 0
-        n = len(ids)
-
-        while i < n:
-            if i + 1 < n and ids[i] == left and ids[i + 1] == right:
-                new_ids.append(new_id)
-                i += 2
-            else:
-                new_ids.append(ids[i])
-                i += 1
-        out.append((new_ids, freq))
-
+    i = 0
+    n = len(ids)
+    while i < n:
+        if i + 1 < n and ids[i] == left and ids[i + 1] == right:
+            out.append(new_id)
+            i += 2
+        else:
+            out.append(ids[i])
+            i += 1
     return out
-
-
-def apply_merge_parallel(pool, corpus, left, right, new_id, chunk_size=10000):
-    shards = [
-        corpus[i : i + chunk_size]
-        for i in range(0, len(corpus), chunk_size)
-    ]
-
-    args = [(shard, left, right, new_id) for shard in shards]
-
-    new_corpus = []
-
-    for new_shard in pool.map(_apply_merge_shard, args):
-        new_corpus.extend(new_shard)
-
-    return new_corpus
 
 def byte_pair_encoding(result, merges):
     word_count = word_counter_parallel(result, 6, 10000)
     vocab, id_to_token, corpus = create_corpus(word_count)
+    pair_to_words, pair_counts = build_index(corpus)
 
-    with ProcessPoolExecutor(max_workers=6) as pool:
-        for _ in tqdm(range(merges), desc="Merging..."):
-            frequnt_pair = find_most_frequent_pair_parallel(pool, corpus, 15000)
+    for _ in tqdm(range(merges), desc="Merging..."):
+        if not pair_counts:
+            break
 
-            if frequnt_pair is None: break
-            left, right = frequnt_pair
+        best_pair = None
+        best_count = -1
+        for pair, cnt in pair_counts.items():
+            if cnt > best_count or (cnt == best_count and (best_pair is None or pair < best_pair)):
+                best_pair, best_count = pair, cnt
 
-            new_token = id_to_token[left] + id_to_token[right]
-            new_id = len(id_to_token)
+        left, right = best_pair
 
-            vocab[new_token] = new_id
-            id_to_token.append(new_token)
+        new_token = id_to_token[left] + id_to_token[right]
+        new_id = len(id_to_token)
+        vocab[new_token] = new_id
+        id_to_token.append(new_token)
 
-            corpus = apply_merge_parallel(pool, corpus, left, right, new_id,  15000)
+        affected = list(pair_to_words.get(best_pair, ()))
+
+        for i in affected:
+            ids, freq = corpus[i]
+
+            old_counts = _pairs_of(ids)
+            new_ids = _merge_ids(ids, left, right, new_id)
+            new_counts = _pairs_of(new_ids)
+            corpus[i][0] = new_ids
+
+            for pair in old_counts.keys() | new_counts.keys():
+                delta = (new_counts.get(pair, 0) - old_counts.get(pair, 0)) * freq
+
+                if delta:
+                    v = pair_counts.get(pair, 0) + delta
+                    if v > 0:
+                        pair_counts[pair] = v
+                    else:
+                        pair_counts.pop(pair, None)
+
+                if new_counts.get(pair, 0) > 0:
+                    pair_to_words.setdefault(pair, set()).add(i)
+                else:
+                    s = pair_to_words.get(pair)
+                    if s is not None:
+                        s.discard(i)
+                        if not s:
+                            del pair_to_words[pair]
 
     return set(id_to_token)
 
