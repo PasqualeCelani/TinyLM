@@ -1,24 +1,38 @@
 import duckdb
 import re
 from tqdm import tqdm
+from collections import Counter
+from concurrent.futures import ProcessPoolExecutor
 
 
 def get_text_from_parquet(filepath):
     return duckdb.execute("""
         SELECT text
         FROM read_parquet(?)
-        limit 10
     """, [filepath]).fetchall()
 
-def split_ws_words(text):
-    return re.split(r"\s+", text)
+def _count_shard(texts):
+    local = Counter()
+    for text in texts:
+        for word in re.split(r"\s+", text[0]):
+            local[word] += 1
+    return local
 
-def word_counter(result):
-    word_count = dict()
-    for text in tqdm(result, desc="Counting words on corpus"):
-        words = split_ws_words(text[0])
-        for word in words:
-            word_count[word] = word_count.get(word, 0) + 1
+def word_counter_parallel(result, n_workers=4, chunk_size=10000):
+    shards = [
+        result[i : i + chunk_size]
+        for i in range(0, len(result), chunk_size)
+    ]
+
+    word_count = Counter()
+    with ProcessPoolExecutor(max_workers=n_workers) as pool:
+        for local in tqdm(
+            pool.map(_count_shard, shards),
+            total=len(shards),
+            desc="Counting words on corpus",
+        ):
+            word_count.update(local)
+
     return word_count
 
 def create_corpus(word_count):
@@ -67,7 +81,7 @@ def find_most_frequent_pair(corpus):
 
 
 def byte_pair_encoding(result, merges):
-    word_count = word_counter(result)
+    word_count = word_counter_parallel(result, 4, 10000)
     vocab, id_to_token, corpus = create_corpus(word_count)
 
     for _ in tqdm(range(merges), desc="Merging..."):
