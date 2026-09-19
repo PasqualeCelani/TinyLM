@@ -93,6 +93,7 @@ class Tokenizer():
         word_count = self.__word_counter_parallel(result, 6, 10000)
         vocab, id_to_token, corpus = self.__create_corpus(word_count)
         pair_to_words, pair_counts = self.__build_index(corpus)
+        merge_rules = []  
 
         for _ in tqdm(range(merges), desc="Merging..."):
             if not pair_counts:
@@ -110,6 +111,8 @@ class Tokenizer():
             new_id = len(id_to_token)
             vocab[new_token] = new_id
             id_to_token.append(new_token)
+
+            merge_rules.append((left, right, new_id))  
 
             affected = list(pair_to_words.get(best_pair, ()))
 
@@ -140,13 +143,13 @@ class Tokenizer():
                             if not s:
                                 del pair_to_words[pair]
 
-        return set(id_to_token)
+        return set(id_to_token), merge_rules
 
 
 
 def main():
     tokenizer = Tokenizer('/mnt/big-disk/Datasets/imdb/unsupervised-00000-of-00001.parquet')
-    V = tokenizer.train(1000)
+    V, merge_rules = tokenizer.train(1000)
     print(V)
     print(len(V))
 
