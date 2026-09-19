@@ -59,13 +59,13 @@ def build_index(corpus):
     pair_counts = {}
 
     for i, (ids, freq) in enumerate(corpus):
-        for pair, mult in Counter(zip(ids, ids[1:])).items():
+        for pair, mult in pairs_of(ids).items():
             pair_counts[pair] = pair_counts.get(pair, 0) + mult * freq
             pair_to_words.setdefault(pair, set()).add(i)
 
     return pair_to_words, pair_counts
 
-def _merge_ids(ids, left, right, new_id):
+def merge_ids(ids, left, right, new_id):
     out = []
     i = 0
     n = len(ids)
@@ -77,6 +77,9 @@ def _merge_ids(ids, left, right, new_id):
             out.append(ids[i])
             i += 1
     return out
+
+def pairs_of(ids):
+    return Counter(zip(ids, ids[1:]))
 
 def byte_pair_encoding(result, merges):
     word_count = word_counter_parallel(result, 6, 10000)
@@ -105,9 +108,9 @@ def byte_pair_encoding(result, merges):
         for i in affected:
             ids, freq = corpus[i]
 
-            old_counts = _pairs_of(ids)
-            new_ids = _merge_ids(ids, left, right, new_id)
-            new_counts = _pairs_of(new_ids)
+            old_counts = pairs_of(ids)
+            new_ids = merge_ids(ids, left, right, new_id)
+            new_counts = pairs_of(new_ids)
             corpus[i][0] = new_ids
 
             for pair in old_counts.keys() | new_counts.keys():
