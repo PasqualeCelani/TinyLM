@@ -144,22 +144,41 @@ class Tokenizer():
 
         return vocab, id_to_token, merge_rules
 
+    def __encode_word(self, ids, rank):
+        while len(ids) >= 2:
+            best_rank = None
+            best_pos = -1
+
+            for i in range(len(ids) - 1):
+                info = rank.get((ids[i], ids[i + 1]))
+                if info is not None:
+                    r = info[0]
+                    if best_rank is None or r < best_rank:
+                        best_rank = r
+                        best_pos = i
+
+            if best_pos == -1: break
+            new_id = rank[(ids[best_pos], ids[best_pos + 1])][1]
+            ids = ids[:best_pos] + [new_id] + ids[best_pos + 2:]
+
+        return ids
 
     def tokenize(self, filepath, merge_rules, V):
-        rows = self.__get_text_from_parquet(filepath)[:2]
+        rank = {(l, r): (k, nid) for k, (l, r, nid, _) in enumerate(merge_rules)}
+        cache = {}
+        rows = self.__get_text_from_parquet(filepath)
         tokenized_rows = []
 
         for (text,) in tqdm(rows, desc="Tokenizing..."):
             row_ids = []
             for word in re.split(r"\s+", text):
-                ids = [V[ch] for ch in word]
-
-                for rule in merge_rules:
-                    left, right, new_id = rule[0], rule[1], rule[2]
-                    ids = self.__merge_ids(ids, left, right, new_id)
-
-                row_ids.extend(ids)
-
+                cached = cache.get(word)
+                if cached is None:
+                    ids = [V[ch] for ch in word]
+                    ids = self.__encode_word(ids, rank)
+                    cached = tuple(ids)    
+                    cache[word] = cached
+                row_ids.extend(cached)
             tokenized_rows.append(row_ids)
 
         return tokenized_rows
