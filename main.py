@@ -9,10 +9,14 @@ class Tokenizer():
         self.filepath = filepath
     
     def __get_text_from_parquet(self):
-        return duckdb.execute("""
-            SELECT text
-            FROM read_parquet(?)
-        """, [self.filepath]).fetchall()
+        try:
+            rows =  duckdb.execute("""
+                SELECT text
+                FROM read_parquet(?)
+            """, [self.filepath]).fetchall()
+        except duckdb.Error as e:
+            raise RuntimeError(f"Failed to read parquet at {self.filepath}: {e}") from e
+        return rows
 
     def _count_shard(self, texts):
         local = Counter()
