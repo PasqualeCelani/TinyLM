@@ -4,16 +4,13 @@ from tqdm import tqdm
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 
-class Tokenizer():
-    def __init__(self, filepath):
-        self.filepath = filepath
-    
-    def __get_text_from_parquet(self):
+class Tokenizer():    
+    def __get_text_from_parquet(self, filepath):
         try:
             rows =  duckdb.execute("""
                 SELECT text
                 FROM read_parquet(?)
-            """, [self.filepath]).fetchall()
+            """, [filepath]).fetchall()
         except duckdb.Error as e:
             raise RuntimeError(f"Failed to read parquet at {self.filepath}: {e}") from e
         return rows
@@ -88,14 +85,14 @@ class Tokenizer():
     def __pairs_of(self, ids):
         return Counter(zip(ids, ids[1:]))
 
-    def train(self, merges):
-        result = self.__get_text_from_parquet()
+    def train(self, filepath, merges):
+        result = self.__get_text_from_parquet(filepath)
         word_count = self.__word_counter_parallel(result, 6, 10000)
         vocab, id_to_token, corpus = self.__create_corpus(word_count)
         pair_to_words, pair_counts = self.__build_index(corpus)
         merge_rules = []  
 
-        for _ in tqdm(range(merges), desc="Merging..."):
+        for k in tqdm(range(merges), desc="Merging..."):
             if not pair_counts:
                 break
 
@@ -112,7 +109,7 @@ class Tokenizer():
             vocab[new_token] = new_id
             id_to_token.append(new_token)
 
-            merge_rules.append((left, right, new_id))  
+            merge_rules.append((left, right, new_id, k))  
 
             affected = list(pair_to_words.get(best_pair, ()))
 
@@ -143,15 +140,40 @@ class Tokenizer():
                             if not s:
                                 del pair_to_words[pair]
 
-        return set(id_to_token), merge_rules
+        merge_rules.sort(key=lambda rule: rule[3])
+
+        return vocab, id_to_token, merge_rules
+
+
+    def tokenize(self, filepath, merge_rules, V):
+        rows = self.__get_text_from_parquet(filepath)[:2]
+        tokenized_rows = []
+
+        for (text,) in tqdm(rows, desc="Tokenizing..."):
+            row_ids = []
+            for word in re.split(r"\s+", text):
+                ids = [V[ch] for ch in word]
+
+                for rule in merge_rules:
+                    left, right, new_id = rule[0], rule[1], rule[2]
+                    ids = self.__merge_ids(ids, left, right, new_id)
+
+                row_ids.extend(ids)
+
+            tokenized_rows.append(row_ids)
+
+        return tokenized_rows
+    
+    def decode(self, ids, V):
+        return " ".join(V[i] for i in ids)
 
 
 
 def main():
-    tokenizer = Tokenizer('/mnt/big-disk/Datasets/imdb/unsupervised-00000-of-00001.parquet')
-    V, merge_rules = tokenizer.train(1000)
-    print(V)
-    print(len(V))
+    tokenizer = Tokenizer()
+    V, id_to_token, merge_rules = tokenizer.train('/mnt/big-disk/Datasets/imdb/unsupervised-00000-of-00001.parquet', 1000)
+    tokenized_rows = tokenizer.tokenize('/mnt/big-disk/Datasets/imdb/unsupervised-00000-of-00001.parquet', merge_rules, V)
+    print(tokenizer.decode(tokenized_rows[0], id_to_token))
 
 if __name__ == "__main__":
     main()
