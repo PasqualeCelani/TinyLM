@@ -1,2 +1,2 @@
-duckdb
 tqdm
+pyarrow

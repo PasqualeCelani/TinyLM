@@ -1,4 +1,4 @@
-import duckdb
+import pyarrow.parquet as pq
 import re
 from tqdm import tqdm
 from collections import Counter
@@ -8,18 +8,16 @@ import json
 class Tokenizer():    
     def __get_text_from_parquet(self, filepath):
         try:
-            rows =  duckdb.execute("""
-                SELECT text
-                FROM read_parquet(?)
-            """, [filepath]).fetchall()
-        except duckdb.Error as e:
+            table = pq.read_table(filepath, columns=['text'])
+            rows = table.column('text').to_pylist()
+        except Exception as e:
             raise RuntimeError(f"Failed to read parquet at {self.filepath}: {e}") from e
         return rows
 
     def _count_shard(self, texts):
         local = Counter()
         for text in texts:
-            for word in re.split(r"\s+", text[0]):
+            for word in re.split(r"\s+", text):
                 local[word] += 1
         return local
 
@@ -215,9 +213,7 @@ class Tokenizer():
 
 def main():
     tokenizer = Tokenizer()
-    V, id_to_token, merge_rules = tokenizer.load_training_from_file("./tokenizer_train.json")
-    tokenized_rows = tokenizer.tokenize_lines(["Hello, I am Pasquale", "This movie was good :)"], merge_rules, V)
-    print(tokenizer.decode(tokenized_rows[1], id_to_token))
+    V, id_to_token, merge_rules = tokenizer.train("/mnt/big-disk/Datasets/imdb/unsupervised-00000-of-00001.parquet", 1000)
 
 if __name__ == "__main__":
     main()
