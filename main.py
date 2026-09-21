@@ -164,13 +164,12 @@ class Tokenizer():
 
         return ids
 
-    def tokenize(self, filepath, merge_rules, V):
+    def __tokenize(self, rows, merge_rules, V):
         rank = {(l, r): (k, nid) for k, (l, r, nid, _) in enumerate(merge_rules)}
         cache = {}
-        rows = self.__get_text_from_parquet(filepath)
         tokenized_rows = []
 
-        for (text,) in tqdm(rows, desc="Tokenizing..."):
+        for text in tqdm(rows, desc="Tokenizing..."):
             row_ids = []
             for word in re.split(r"\s+", text):
                 cached = cache.get(word)
@@ -183,6 +182,17 @@ class Tokenizer():
             tokenized_rows.append(row_ids)
 
         return tokenized_rows
+    
+    def tokenize_parquet(self, filepath, merge_rules, V):
+        rows = self.__get_text_from_parquet(filepath)
+        return self.__tokenize(rows, merge_rules, V)
+    
+    def tokenize_text(self, text, merge_rules, V):
+        rows = [text]
+        return self.__tokenize(rows, merge_rules, V)
+    
+    def tokenize_lines(self, lines, merge_rules, V):
+        return self.__tokenize(lines, merge_rules, V)
     
     def decode(self, ids, V):
         return " ".join(V[i] for i in ids)
@@ -206,8 +216,8 @@ class Tokenizer():
 def main():
     tokenizer = Tokenizer()
     V, id_to_token, merge_rules = tokenizer.load_training_from_file("./tokenizer_train.json")
-    tokenized_rows = tokenizer.tokenize('/mnt/big-disk/Datasets/imdb/unsupervised-00000-of-00001.parquet', merge_rules, V)
-    print(tokenizer.decode(tokenized_rows[0], id_to_token))
+    tokenized_rows = tokenizer.tokenize_lines(["Hello, I am Pasquale", "This movie was good :)"], merge_rules, V)
+    print(tokenizer.decode(tokenized_rows[1], id_to_token))
 
 if __name__ == "__main__":
     main()
