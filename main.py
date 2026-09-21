@@ -3,6 +3,7 @@ import re
 from tqdm import tqdm
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
+import json
 
 class Tokenizer():    
     def __get_text_from_parquet(self, filepath):
@@ -186,11 +187,25 @@ class Tokenizer():
     def decode(self, ids, V):
         return " ".join(V[i] for i in ids)
 
+    def save_training(self, V, id_to_token, merge_rules):
+        data = {
+            "merges" : merge_rules,
+            "vocabulary" : V,
+            "id_to_token" : id_to_token
+        }
+        with open("tokenizer_train.json", "w", encoding="utf-8") as file:
+            json.dump(data, file, indent=2)
+    
+    def load_training_from_file(self, filepath):
+        data = None
+        with open(filepath, "r") as file:
+            data = json.load(file)
+        return data["vocabulary"], data["id_to_token"], data["merges"]
 
 
 def main():
     tokenizer = Tokenizer()
-    V, id_to_token, merge_rules = tokenizer.train('/mnt/big-disk/Datasets/imdb/unsupervised-00000-of-00001.parquet', 1000)
+    V, id_to_token, merge_rules = tokenizer.load_training_from_file("./tokenizer_train.json")
     tokenized_rows = tokenizer.tokenize('/mnt/big-disk/Datasets/imdb/unsupervised-00000-of-00001.parquet', merge_rules, V)
     print(tokenizer.decode(tokenized_rows[0], id_to_token))
 
