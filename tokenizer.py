@@ -7,7 +7,11 @@ from concurrent.futures import ProcessPoolExecutor
 import json
 from pathlib import Path
 
-class Tokenizer():    
+class Tokenizer():
+
+    def __init__(self, n_workers=6):
+        self.n_workers = n_workers
+
     def get_text_from_parquet(self, filepath):
         try:
             table = pq.read_table(filepath, columns=['text'])
@@ -23,14 +27,14 @@ class Tokenizer():
                 local[word] += 1
         return local
 
-    def __word_counter_parallel(self, result, n_workers=4, chunk_size=10000):
+    def __word_counter_parallel(self, result, chunk_size=10000):
         shards = [
             result[i : i + chunk_size]
             for i in range(0, len(result), chunk_size)
         ]
 
         word_count = Counter()
-        with ProcessPoolExecutor(max_workers=n_workers) as pool:
+        with ProcessPoolExecutor(max_workers=self.n_workers) as pool:
             for local in tqdm(
                 pool.map(self._count_shard, shards),
                 total=len(shards),
@@ -88,7 +92,7 @@ class Tokenizer():
 
     def train(self, filepath, merges):
         result = self.get_text_from_parquet(filepath)
-        word_count = self.__word_counter_parallel(result, 6, 10000)
+        word_count = self.__word_counter_parallel(result,  10000)
         vocab, id_to_token, corpus = self.__create_corpus(word_count)
         pair_to_words, pair_counts = self.__build_index(corpus)
         merge_rules = []  
