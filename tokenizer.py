@@ -9,8 +9,9 @@ from pathlib import Path
 
 class Tokenizer():
 
-    def __init__(self, n_workers=6):
+    def __init__(self, n_workers=6, special_tokens=["<||start||>",  "<||end||>", "<||pad||>"]):
         self.n_workers = n_workers
+        self.special_tokens = special_tokens
 
     def get_text_from_parquet(self, filepath):
         try:
@@ -55,6 +56,9 @@ class Tokenizer():
                 vocab[token] = idx
                 id_to_token.append(token)
             return idx
+        
+        for special_token in self.special_tokens:
+            id_special_token = get_id(special_token)
         
         corpus = []
         for word, freq in word_count.items():
