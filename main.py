@@ -1,9 +1,8 @@
 from tokenizer import Tokenizer
-from tinygrad import Tensor
-from tinygrad import nn
+from tinygrad import Tensor, Device, nn, Context, TinyJit
 from tinygrad.nn.optim import SGD
-from tinygrad import Context
 from tqdm import tqdm
+
 
 class TinyLM():
     def __init__(self, lm_config):
@@ -42,8 +41,11 @@ def main():
     V, id_to_token, _ = tokenizer.load_training_from_file("./dataset/tokenized/tokenizer_train.json")
     rows = tokenizer.get_text_from_parquet("./dataset/tokenized/unsupervised-00000-of-00001_tokenized.parquet")
 
+    print("[INFO] packing corpus...")
     packed_corpus = pack_corpus(rows, V)
-    block_size = 20
+    print("[SUCCESS] corpus packed.")
+
+    print(f"[INFO] used device: {Device.DEFAULT}")
 
     lm_config = {
         "vocab_size" : len(V),
@@ -52,10 +54,23 @@ def main():
         "ctx_size" : 2
     }
     lm = TinyLM(lm_config)
-    opt = SGD([lm.lin1.weight, lm.lin2.weight, lm.E], lr=3e-4)
+    opt = SGD([lm.lin1.weight, lm.lin2.weight, lm.E], lr=1e-3)
     epochs = 3
 
+    block_size = 20
     num_windows = block_size // lm_config["ctx_size"]
+
+    @TinyJit
+    def train_step(block_t):
+        windows = block_t[:-1].reshape(num_windows, lm_config["ctx_size"]) # (num_windows, ctx)
+        Y = block_t[lm_config["ctx_size"]::lm_config["ctx_size"]] # (num_windows,)
+        idx = Tensor.arange(num_windows) # (num_windows,)
+        p = lm(windows)
+        loss = -(p[Y, idx].mean())
+        opt.zero_grad()
+        loss.backward()
+        return loss.realize(*opt.schedule_step()) 
+
 
     with Context(TRAINING=1):
         for epoch in range(epochs):
@@ -68,22 +83,11 @@ def main():
 
             for i in progress_bar:
                 block_t = Tensor(packed_corpus[i:i+ (num_windows * lm_config["ctx_size"]+1)]) # (num_windows*ctx,)
-                windows = block_t[:-1].reshape(num_windows, lm_config["ctx_size"]) # (num_windows, ctx)
-                Y = block_t[lm_config["ctx_size"]::lm_config["ctx_size"]] # (num_windows,)
-                idx = Tensor.arange(num_windows) # (num_windows,)
-                
-                p = lm(windows)
-
-                loss = -(p[Y, idx].mean())
+                loss =  train_step(block_t)
 
                 progress_bar.set_description(
                     f"Epoch {epoch+1} | Loss: {loss.item():.3f}"
                 )
-
-
-                opt.zero_grad()
-                loss.backward()
-                opt.step()
 
 
 
