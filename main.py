@@ -54,7 +54,7 @@ def main():
         "ctx_size" : 2
     }
     lm = TinyLM(lm_config)
-    opt = SGD([lm.lin1.weight, lm.lin2.weight, lm.E], lr=1e-3)
+    opt = SGD(nn.state.get_parameters(lm), lr=0.2)
     epochs = 3
 
     block_size = 20
@@ -85,9 +85,10 @@ def main():
                 block_t = Tensor(packed_corpus[i:i+ (num_windows * lm_config["ctx_size"]+1)]) # (num_windows*ctx,)
                 loss =  train_step(block_t)
 
-                progress_bar.set_description(
-                    f"Epoch {epoch+1} | Loss: {loss.item():.3f}"
-                )
+                if i % 100 == 0:
+                    progress_bar.set_description(
+                        f"Epoch {epoch+1} | Loss: {loss.item():.3f}"
+                    )
 
 
 
