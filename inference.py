@@ -25,7 +25,7 @@ def main():
 
 
     lm = TinyLM(lm_config)
-    print(f"[INFO] Number of model parametes: {get_model_param_number(lm)}")
+    print(f"[INFO] Number of model parameters: {get_model_param_number(lm)}")
 
     state_dict = safe_load("./weights/model-2-ctx.safetensors")
     load_state_dict(lm, state_dict)
@@ -52,7 +52,7 @@ def main():
 
         print(id_to_token[next_id], end=" ", flush=True)
         generated.append(next_id) 
-        
+
     print("\n"+"="*100)
     print("="*100)
 

@@ -36,7 +36,7 @@ def main():
 
 
     lm = TinyLM(lm_config)
-    print(f"[INFO] Number of model parametes: {get_model_param_number(lm)}")
+    print(f"[INFO] Number of model parameters: {get_model_param_number(lm)}")
    
     opt = SGD(nn.state.get_parameters(lm), lr=0.2)
     epochs = 1
