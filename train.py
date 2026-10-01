@@ -25,12 +25,8 @@ def main():
     packed_corpus = pack_corpus(rows, V)
     print("[SUCCESS] corpus packed.")
 
-    lm_config = {
-        "vocab_size" : len(V),
-        "embeeding_dim" : 128,
-        "hiddend_dim" : 64,
-        "ctx_size" : 4
-    }
+    lm_config = get_config("config.json")
+    lm_config["vocab_size"] = len(V)
 
     print(f"[INFO] used device: {Device.DEFAULT}")
     print(f"[INFO] vocabulary size: {len(V)}")

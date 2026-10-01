@@ -2,6 +2,7 @@ from tokenizer import Tokenizer
 from tinygrad import Tensor, Device
 from tinygrad.nn.state import safe_load, load_state_dict
 from model import TinyLM, get_model_param_number
+from config import get_config
 
 
 def main():
@@ -13,12 +14,8 @@ def main():
     V, id_to_token, merge_rules = tokenizer.load_training_from_file("./dataset/tokenized/tokenizer_train.json")
     row = tokenizer.tokenize_text(text, merge_rules, V)[0]
 
-    lm_config = {
-        "vocab_size" : len(V),
-        "embeeding_dim" : 128,
-        "hiddend_dim" : 64,
-        "ctx_size" : 2
-    }
+    lm_config = get_config("config.json")
+    lm_config["vocab_size"] = len(V)
 
     print(f"[INFO] used device: {Device.DEFAULT}")
     print(f"[INFO] vocabulary size: {len(V)}")
@@ -36,6 +33,10 @@ def main():
     ids = [V["<||start||>"]] + row  
     generated = list(ids)
     decoding_max_token = 1024
+
+    print("="*100)
+    print("+"*47+"TinyLM"+"+"*47)
+    print("="*100)
     print(text, end=" ", flush=True)
 
     for _ in range(decoding_max_token):
@@ -50,14 +51,10 @@ def main():
             break
 
         print(id_to_token[next_id], end=" ", flush=True)
-        generated.append(next_id)
-    
-
-
-
-
-
-
+        generated.append(next_id) 
+        
+    print("\n"+"="*100)
+    print("="*100)
 
 if __name__ == "__main__":
     main()
