@@ -3,6 +3,7 @@ from tinygrad import Tensor, Device, nn, Context, TinyJit
 from tinygrad.nn.optim import SGD
 from tinygrad.nn.state import safe_save, get_state_dict
 from tqdm import tqdm
+import math
 
 
 class TinyLM():
@@ -40,6 +41,9 @@ def save_model_weights(lm):
     safe_save(state_dict, "model.safetensors")
     print("[SUCCESS] model weight have been saved at ./model.safetensors")
 
+def get_model_param_number(lm):
+    return sum(math.prod(param.shape) for param in nn.state.get_parameters(lm))
+
 def main():
     Tensor.manual_seed(42)
 
@@ -66,6 +70,8 @@ def main():
 
 
     lm = TinyLM(lm_config)
+    print(f"[INFO] Number of model parametes: {get_model_param_number(lm)}")
+   
     opt = SGD(nn.state.get_parameters(lm), lr=0.2)
     epochs = 1
 
