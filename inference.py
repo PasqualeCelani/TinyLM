@@ -1,0 +1,63 @@
+from tokenizer import Tokenizer
+from tinygrad import Tensor, Device
+from tinygrad.nn.state import safe_load, load_state_dict
+from model import TinyLM, get_model_param_number
+
+
+def main():
+    Tensor.manual_seed(42)
+
+    text = "First time I"
+
+    tokenizer = Tokenizer(n_workers=2)
+    V, id_to_token, merge_rules = tokenizer.load_training_from_file("./dataset/tokenized/tokenizer_train.json")
+    row = tokenizer.tokenize_text(text, merge_rules, V)[0]
+
+    lm_config = {
+        "vocab_size" : len(V),
+        "embeeding_dim" : 128,
+        "hiddend_dim" : 64,
+        "ctx_size" : 2
+    }
+
+    print(f"[INFO] used device: {Device.DEFAULT}")
+    print(f"[INFO] vocabulary size: {len(V)}")
+    print(f"[INFO] embeeding dimension: {lm_config["embeeding_dim"]}")
+    print(f"[INFO] hidden layer dimension: {lm_config["hiddend_dim"]}")
+    print(f"[INFO] context size: {lm_config["ctx_size"]}")
+
+
+    lm = TinyLM(lm_config)
+    print(f"[INFO] Number of model parametes: {get_model_param_number(lm)}")
+
+    state_dict = safe_load("./weights/model-2-ctx.safetensors")
+    load_state_dict(lm, state_dict)
+
+    ids = [V["<||start||>"]] + row  
+    generated = list(ids)
+    decoding_max_token = 1024
+    print(text, end=" ", flush=True)
+
+    for _ in range(decoding_max_token):
+        X = Tensor(generated[-lm_config["ctx_size"]:]).reshape(1, lm_config["ctx_size"])
+
+        logp = lm(X)
+        cdf = logp.exp().cumsum(axis=0)     
+        u = Tensor.rand(1)
+        next_id = int((cdf < u).sum().item())
+
+        if next_id == V["<||end||>"]:
+            break
+
+        print(id_to_token[next_id], end=" ", flush=True)
+        generated.append(next_id)
+    
+
+
+
+
+
+
+
+if __name__ == "__main__":
+    main()
