@@ -38,6 +38,7 @@ def pack_corpus(rows, V):
 def save_model_weights(lm):
     state_dict = get_state_dict(lm)
     safe_save(state_dict, "model.safetensors")
+    print("[SUCCESS] model weight have been saved at ./model.safetensors")
 
 def main():
     Tensor.manual_seed(42)
@@ -50,19 +51,26 @@ def main():
     packed_corpus = pack_corpus(rows, V)
     print("[SUCCESS] corpus packed.")
 
-    print(f"[INFO] used device: {Device.DEFAULT}")
-
     lm_config = {
         "vocab_size" : len(V),
         "embeeding_dim" : 128,
         "hiddend_dim" : 64,
-        "ctx_size" : 2
+        "ctx_size" : 4
     }
+
+    print(f"[INFO] used device: {Device.DEFAULT}")
+    print(f"[INFO] vocabulary size: {len(V)}")
+    print(f"[INFO] embeeding dimension: {lm_config["embeeding_dim"]}")
+    print(f"[INFO] hidden layer dimension: {lm_config["hiddend_dim"]}")
+    print(f"[INFO] context size: {lm_config["hiddend_dim"]}")
+
+
     lm = TinyLM(lm_config)
     opt = SGD(nn.state.get_parameters(lm), lr=0.2)
-    epochs = 3
+    epochs = 1
 
-    block_size = 20
+    block_size = 1024
+    print(f"[INFO] block size: {block_size}")
     num_windows = block_size // lm_config["ctx_size"]
 
     @TinyJit
