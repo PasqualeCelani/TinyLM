@@ -1,6 +1,7 @@
 from tokenizer import Tokenizer
 from tinygrad import Tensor, Device, nn, Context, TinyJit
 from tinygrad.nn.optim import SGD
+from tinygrad.nn.state import safe_save, get_state_dict
 from tqdm import tqdm
 
 
@@ -33,6 +34,10 @@ def pack_corpus(rows, V):
         row.append(V["<||end||>"])
         corpus += row
     return corpus
+
+def save_model_weights(lm):
+    state_dict = get_state_dict(lm)
+    safe_save(state_dict, "model.safetensors")
 
 def main():
     Tensor.manual_seed(42)
@@ -89,6 +94,8 @@ def main():
                     progress_bar.set_description(
                         f"Epoch {epoch+1} | Loss: {loss.item():.3f}"
                     )
+    
+    save_model_weights(lm)
 
 
 
