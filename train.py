@@ -62,7 +62,7 @@ def main():
     print(f"[INFO] vocabulary size: {len(V)}")
     print(f"[INFO] embeeding dimension: {lm_config["embeeding_dim"]}")
     print(f"[INFO] hidden layer dimension: {lm_config["hiddend_dim"]}")
-    print(f"[INFO] context size: {lm_config["hiddend_dim"]}")
+    print(f"[INFO] context size: {lm_config["ctx_size"]}")
 
 
     lm = TinyLM(lm_config)
