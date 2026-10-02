@@ -5,6 +5,24 @@ from model import TinyLM, get_model_param_number
 from config import get_config
 
 
+def inverse_transfrom_sampling_decoding(logp):
+    cdf = logp.exp().cumsum(axis=0)     
+    u = Tensor.rand(1)
+    next_id = int((cdf < u).sum().item())
+    return next_id
+
+def greedy_decoding(logp):
+    return logp.exp().argmax(axis=0).item()
+
+def next_token(logp, method="ITS"):
+    if method not in ["ITS", "greedy"]:
+        raise RuntimeError(f"[ERROR] the provided method: {method} is not in available.")
+    
+    if method == "ITS":
+        return inverse_transfrom_sampling_decoding(logp)
+    elif method == "greedy":
+        return greedy_decoding(logp)
+
 def main():
     Tensor.manual_seed(42)
 
@@ -43,9 +61,7 @@ def main():
         X = Tensor(generated[-lm_config["ctx_size"]:]).reshape(1, lm_config["ctx_size"])
 
         logp = lm(X)
-        cdf = logp.exp().cumsum(axis=0)     
-        u = Tensor.rand(1)
-        next_id = int((cdf < u).sum().item())
+        next_id = next_token(logp, method="greedy")
 
         if next_id == V["<||end||>"]:
             break
