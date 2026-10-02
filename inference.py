@@ -5,12 +5,13 @@ from model import TinyLM, get_model_param_number
 from config import get_config
 
 
-def next_token(logp, method="multinomial"):
-    if method not in ["multinomial", "greedy"]:
+def next_token(logp, method="dist_sampling"):
+    if method not in ["dist_sampling", "greedy"]:
         raise RuntimeError(f"[ERROR] the provided method: {method} is not in available.")
     
-    if method == "multinomial":
-        return logp.exp().flatten().multinomial(num_samples=1).item()
+    if method == "dist_sampling":
+        temperature = 0.75
+        return logp.exp().flatten().pow(1/temperature).multinomial(num_samples=1).item()
     elif method == "greedy":
         return logp.exp().argmax(axis=0).item()
 
@@ -52,7 +53,7 @@ def main():
         X = Tensor(generated[-lm_config["ctx_size"]:]).reshape(1, lm_config["ctx_size"])
 
         logp = lm(X)
-        next_id = next_token(logp, method="multinomial")
+        next_id = next_token(logp, method="dist_sampling")
 
         if next_id == V["<||end||>"]:
             break
