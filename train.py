@@ -3,6 +3,7 @@ from tinygrad import Tensor, Device, nn, Context, TinyJit
 from tinygrad.nn.optim import SGD
 from tqdm import tqdm
 from model import TinyLM, save_model_weights, get_model_param_number
+from config import get_config
 
     
 def pack_corpus(rows, V):
