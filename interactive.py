@@ -101,7 +101,7 @@ def main():
         ids = [V["<||start||>"]] + row  
         generated = list(ids)
         decoding_max_token = 100
-
+        print("\n")
         print("TinyLM: ", end=" ", flush=True)
         for _ in range(decoding_max_token):
             next_id = get_next_token_id_n_gram(n_gram, V, generated, n)
