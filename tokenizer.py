@@ -172,12 +172,12 @@ class Tokenizer():
 
         return ids
 
-    def __tokenize(self, rows, merge_rules, V):
+    def __tokenize(self, rows, merge_rules, V, show_progress = True):
         rank = {(l, r): (k, nid) for k, (l, r, nid, _) in enumerate(merge_rules)}
         cache = {}
         tokenized_rows = []
 
-        for text in tqdm(rows, desc="Tokenizing..."):
+        for text in tqdm(rows, desc="Tokenizing...", disable=not show_progress):
             row_ids = []
             for word in re.split(r"\s+", text):
                 cached = cache.get(word)
@@ -216,7 +216,7 @@ class Tokenizer():
     
     def tokenize_text(self, text, merge_rules, V):
         rows = [text]
-        return self.__tokenize(rows, merge_rules, V)
+        return self.__tokenize(rows, merge_rules, V, False)
     
     def tokenize_lines(self, lines, merge_rules, V):
         return self.__tokenize(lines, merge_rules, V)
