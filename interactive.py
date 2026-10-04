@@ -58,7 +58,7 @@ def train_n_gram(corpus, n=4):
     return ngram
 
 def get_next_token_id_n_gram(ngram, V, generated, n):
-    next_id = 0
+    next_id = None
     max_p = 0
 
     for w, w_id in V.items():
@@ -105,6 +105,10 @@ def main():
         print("TinyLM: ", end=" ", flush=True)
         for _ in range(decoding_max_token):
             next_id = get_next_token_id_n_gram(n_gram, V, generated, n)
+
+            if next_id is None:
+                print("I'm sorry, but that's a bit beyond what I can do!", end=" ", flush=True)
+                break
 
             if next_id == V["<||end||>"]:
                 break
