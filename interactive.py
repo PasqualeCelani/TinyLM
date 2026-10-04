@@ -48,7 +48,7 @@ def draw_footer():
 def main():
     tokenizer = Tokenizer(n_workers=2)
     V, id_to_token, merge_rules = tokenizer.load_training_from_file("./dataset/tokenized/tokenizer_train.json")
-    rows = tokenizer.get_text_from_parquet("./dataset/tokenized/party-dataset_tokenized.parquet")
+    rows = tokenizer.get_text_from_parquet("./dataset/tokenized/party-dataset-train_tokenized.parquet")
 
     #print(f"[INFO] tokens in dataset: {sum([len(row) for row in rows])}")
 

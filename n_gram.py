@@ -1,4 +1,5 @@
 from collections import Counter
+import math
 
 class NGram():
     def __init__(self, n, V):
@@ -29,3 +30,13 @@ class NGram():
                 next_id = w_id
 
         return next_id
+    
+    def log_probability(self, text):
+        total = 0.0
+        for i in range(self.n - 1, len(text)):
+            seq = tuple(text[i-(self.n-1):i+1])
+            p = self.ngram.get(seq)
+            if p is None or p == 0:
+                return float("-inf") 
+            total += math.log(p)
+        return total
