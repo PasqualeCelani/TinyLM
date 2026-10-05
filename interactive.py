@@ -70,7 +70,7 @@ def main():
             sys.stdout.flush()
             break
 
-        text = "<||user||> " + user_input + "<||bot||>"
+        text = "<||user||> " + user_input.lower() + "<||bot||>"
         
         row = tokenizer.tokenize_text(text, merge_rules, V)[0]
         
