@@ -23,9 +23,7 @@ def main():
     n_gram.train(packed_corpus)
     print("[SUCESS] training have been completed.")
 
-    V, id_to_token, merge_rules = tokenizer.load_training_from_file("./dataset/tokenized/tokenizer_validation.json")
     rows = tokenizer.get_text_from_parquet("./dataset/tokenized/party-dataset-validation_tokenized.parquet")
-
     packed_corpus = pack_corpus(rows, V)
     sequence_length = len(packed_corpus)
 
