@@ -6,7 +6,7 @@ class NGram():
         self.n = n
         self.ngram = {}
         self.V = V
-        self.delta = 0.001
+        self.delta = 0.00000001
     
     def train(self, corpus):
         nominator =  Counter()

@@ -19,7 +19,7 @@ def main():
     packed_corpus = pack_corpus(rows, V)
 
     print("[INFO] training...")
-    n_gram = NGram(4, V)
+    n_gram = NGram(5, V)
     n_gram.train(packed_corpus)
     print("[SUCESS] training have been completed.")
 

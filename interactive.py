@@ -54,7 +54,7 @@ def main():
 
     packed_corpus = pack_corpus(rows, V)
 
-    n_gram = NGram(4, V)
+    n_gram = NGram(5, V)
     n_gram.train(packed_corpus)
     
     init_screen(bar_lines=3)
@@ -86,7 +86,7 @@ def main():
                 print("I'm sorry, but that's a bit beyond what I can do!", end=" ", flush=True)
                 break
 
-            if next_id == V["<||end||>"]:
+            if next_id == V["<||end||>"] or next_id == V["<||bot||>"]:
                 break
 
             print(id_to_token[next_id], end=" ", flush=True)
