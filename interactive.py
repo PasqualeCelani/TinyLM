@@ -1,6 +1,7 @@
 from tokenizer import Tokenizer
 import sys, shutil
 from n_gram import NGram
+import random
 
 def pack_corpus(rows, V):
     corpus = []
@@ -50,8 +51,6 @@ def main():
     V, id_to_token, merge_rules = tokenizer.load_training_from_file("./dataset/tokenized/tokenizer_train.json")
     rows = tokenizer.get_text_from_parquet("./dataset/tokenized/party-dataset-train_tokenized.parquet")
 
-    #print(f"[INFO] tokens in dataset: {sum([len(row) for row in rows])}")
-
     packed_corpus = pack_corpus(rows, V)
 
     n_gram = NGram(5, V)
@@ -79,11 +78,32 @@ def main():
         decoding_max_token = 100
         print("\n")
         print("TinyLM: ", end=" ", flush=True)
+
+        if user_input == "":
+            insert_text_messages = [
+                "Go ahead and type your message here!", 
+                "Let your words flow here", 
+                "Share your thoughts below!",
+                "Please enter the required information below",
+                "Pop your text in!"
+            ]
+
+            print(random.choice(insert_text_messages), end=" ", flush=True)
+            print("\n")
+            continue
+
         for _ in range(decoding_max_token):
             next_id = n_gram.get_next_token_id(generated)
 
             if next_id is None:
-                print("I'm sorry, but that's a bit beyond what I can do!", end=" ", flush=True)
+                fallback_response_messages = [
+                    "I'm sorry, but that's a bit beyond what I can do!",
+                    "Oops, you've stumped me! That's a little out of my wheelhouse right now.",
+                    "I wish I could help with that, but it's just outside my current capabilities.",
+                    "I'm sorry, but that's a bit beyond my expertise!",
+                    "Hmm, I'm not quite sure how to answer that one!"
+                ]
+                print(random.choice(fallback_response_messages), end=" ", flush=True)
                 break
 
             if next_id == V["<||end||>"] or next_id == V["<||bot||>"]:
