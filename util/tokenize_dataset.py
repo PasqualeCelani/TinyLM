@@ -1,5 +1,11 @@
-from tokenizer import Tokenizer
 import argparse
+
+import sys
+import pathlib
+sys.path.append("../")
+
+from tokenizer import Tokenizer
+
 
 def main():
     parser = argparse.ArgumentParser(description="Tokenizer script of parquet file.")
