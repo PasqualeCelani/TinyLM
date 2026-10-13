@@ -46,6 +46,10 @@ def draw_footer():
     sys.stdout.write("\0338")
     sys.stdout.flush()
 
+def clear_region(top, bottom):
+    height = bottom - top + 1
+    sys.stdout.write(f"\033[{top};1H\033[{height}S\033[{top};1H")
+    sys.stdout.flush()
 
 
 def main():
@@ -71,6 +75,11 @@ def main():
             sys.stdout.write("\033[r\033[3J\033[2J\033[H")
             sys.stdout.flush()
             break
+
+        if user_input == ":clear":
+            size = shutil.get_terminal_size()
+            clear_region(14 + 1, size.lines - 3)
+            continue
 
         text = "<||user||> " + user_input.lower() + "<||bot||>"
         
