@@ -12,9 +12,11 @@ def pack_corpus(rows, V):
     return corpus
 
 
-def init_screen(bar_lines=2):
+def init_screen(header_lines, footer_lines):
     rows = shutil.get_terminal_size().lines
-    sys.stdout.write(f"\0337\033[1;{rows - bar_lines}r\0338")
+    top = header_lines + 1     
+    bottom = rows - footer_lines
+    sys.stdout.write(f"\0337\033[{top};{bottom}r\0338")
     sys.stdout.flush()
 
 def draw_hero():
@@ -56,9 +58,10 @@ def main():
     n_gram = NGram(5, V)
     n_gram.train(packed_corpus)
     
-    init_screen(bar_lines=3)
+    sys.stdout.write("\033[2J\033[H")
     draw_hero()
-    draw_footer()
+    init_screen(14, 3)                      
+    draw_footer()                      
 
     while True:
 
