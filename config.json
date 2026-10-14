@@ -1,0 +1,21 @@
+{
+    "tokenizer" : {
+        "concurent_workers" : 6,
+        "path" : "./dataset/tokenized/tokenizer_train.json",
+        "training_dataset_path" : "./dataset/tokenized/party-dataset-train_tokenized.parquet",
+        "validation_dataset_path" : "./dataset/tokenized/party-dataset-validation_tokenized.parquet"
+    },
+
+    "model" : {
+        "n-gram" : {
+            "n" : 5,
+            "delta" : 0.00000001
+        }
+    },
+
+    "decoding" : {
+        "name" : "greedy",
+        "decoding_params" : {},
+        "decoding_max_token" : 100
+    }
+}

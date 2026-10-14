@@ -1,7 +1,9 @@
 from tokenizer import Tokenizer
 import sys, shutil
-from n_gram import NGram
+from models import build_model
 import random
+from decoding import build_decoder
+from util.config import load_config
 
 def pack_corpus(rows, V):
     corpus = []
@@ -53,14 +55,20 @@ def clear_region(top, bottom):
 
 
 def main():
-    tokenizer = Tokenizer(n_workers=2)
-    V, id_to_token, merge_rules = tokenizer.load_training_from_file("./dataset/tokenized/tokenizer_train.json")
-    rows = tokenizer.get_text_from_parquet("./dataset/tokenized/party-dataset-train_tokenized.parquet")
+    config = load_config("./config.json")
+
+    tokenizer = Tokenizer(n_workers=config["tokenizer"]["concurent_workers"])
+    V, id_to_token, merge_rules = tokenizer.load_training_from_file(config["tokenizer"]["path"])
+    rows = tokenizer.get_text_from_parquet(config["tokenizer"]["training_dataset_path"])
 
     packed_corpus = pack_corpus(rows, V)
 
-    n_gram = NGram(5, V)
-    n_gram.train(packed_corpus)
+    model_config = config["model"]["n-gram"]
+
+    model = build_model("ngram", V, model_config)
+    model.train(packed_corpus)
+
+    decoder = build_decoder(config["decoding"])
     
     sys.stdout.write("\033[2J\033[H")
     draw_hero()
@@ -87,7 +95,7 @@ def main():
         
         ids = [V["<||start||>"]] + row  
         generated = list(ids)
-        decoding_max_token = 100
+        decoding_max_token = config["decoding"]["decoding_max_token"]
         print("\n")
         print("TinyLM: ", end=" ", flush=True)
 
@@ -105,9 +113,10 @@ def main():
             continue
 
         for _ in range(decoding_max_token):
-            next_id = n_gram.get_next_token_id(generated)
+            dist = model.next_token_distribution(generated)
+            next_id = decoder(dist)
 
-            if next_id is None:
+            if next_id is None or V["<||start||>"] == next_id:
                 fallback_response_messages = [
                     "I'm sorry, but that's a bit beyond what I can do!",
                     "Oops, you've stumped me! That's a little out of my wheelhouse right now.",

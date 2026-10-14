@@ -1,6 +1,7 @@
 from tokenizer import Tokenizer
-from n_gram import NGram
+from models import build_model
 import math
+from util.config import load_config
 
 def pack_corpus(rows, V):
     corpus = []
@@ -11,25 +12,27 @@ def pack_corpus(rows, V):
     return corpus
 
 def main():
-    tokenizer = Tokenizer(n_workers=2)
+    config = load_config("./config.json")
 
-    V, id_to_token, merge_rules = tokenizer.load_training_from_file("./dataset/tokenized/tokenizer_train.json")
-    rows = tokenizer.get_text_from_parquet("./dataset/tokenized/party-dataset-train_tokenized.parquet")
+    tokenizer = Tokenizer(n_workers=config["tokenizer"]["concurent_workers"])
+    V, id_to_token, merge_rules = tokenizer.load_training_from_file(config["tokenizer"]["path"])
+    rows = tokenizer.get_text_from_parquet(config["tokenizer"]["training_dataset_path"])
 
     packed_corpus = pack_corpus(rows, V)
 
     print("[INFO] training...")
-    n_gram = NGram(5, V)
-    n_gram.train(packed_corpus)
+    model_config = config["model"]["n-gram"]
+    model = build_model("ngram", V, model_config)
+    model.train(packed_corpus)
     print("[SUCESS] training have been completed.")
 
-    rows = tokenizer.get_text_from_parquet("./dataset/tokenized/party-dataset-validation_tokenized.parquet")
-    packed_corpus = pack_corpus(rows, V)
-    sequence_length = len(packed_corpus)
+    rows = tokenizer.get_text_from_parquet(config["tokenizer"]["validation_dataset_path"])
+    packed_text = pack_corpus(rows, V)
+    
+    logp = model.log_probability(packed_text)
+    n_predicted = len(packed_text) - getattr(model, "n", 1)
+    perplexity =  math.exp(-logp / n_predicted)
 
-    logp = n_gram.log_probability(packed_corpus)
-    n_predicted = len(packed_corpus) - (n_gram.n - 1)
-    perplexity = math.exp(-logp / n_predicted)
     
     print(f"[INFO] Perplexity: {perplexity}")
 
