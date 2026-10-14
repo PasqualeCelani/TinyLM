@@ -12,6 +12,7 @@ def register(name):
 def build_model(name, vocab, params):
     if name not in MODEL_REGISTRY:
         from .n_gram import NGram  
+        from .bengiolm import BengioLM
     if name not in MODEL_REGISTRY:
         raise KeyError(f"Unknown model '{name}'. Available: {list(MODEL_REGISTRY)}")
     return MODEL_REGISTRY[name](vocab, params)

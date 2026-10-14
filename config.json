@@ -10,12 +10,24 @@
         "n-gram" : {
             "n" : 5,
             "delta" : 0.00000001
+        },
+        "bengiolm" : {
+            "params" : {
+                "embeeding_dim" : 64,
+                "hiddend_dim" : 128,
+                "ctx_size" : 4
+            },
+            "training" : {
+                "epochs" : 10,
+                "batch_size" : 256,
+                "lr" : 0.1
+            }
         }
     },
 
     "decoding" : {
-        "name" : "greedy",
-        "decoding_params" : {},
+        "name" : "sample",
+        "decoding_params" : {"temperature" : 0.3},
         "decoding_max_token" : 100
     }
 }

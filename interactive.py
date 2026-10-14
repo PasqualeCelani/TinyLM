@@ -63,10 +63,10 @@ def main():
 
     packed_corpus = pack_corpus(rows, V)
 
-    model_config = config["model"]["n-gram"]
+    model_config = config["model"]["bengiolm"]
 
-    model = build_model("ngram", V, model_config)
-    model.train(packed_corpus)
+    model = build_model("bengiolm", V, model_config)
+    model.load_model_weights("./weights/model.safetensors")
 
     decoder = build_decoder(config["decoding"])
     

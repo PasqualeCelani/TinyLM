@@ -30,6 +30,6 @@ DECODERS = {
 
 
 def build_decoder(config):
-    name = config.get("decoding", "greedy")
+    name = config.get("name", "greedy")
     params = config.get("decoding_params", {})
     return DECODERS[name](**params)
