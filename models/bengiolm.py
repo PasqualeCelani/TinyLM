@@ -15,7 +15,7 @@ class BengioLMModel():
         self.hiddend_dim = lm_config["hiddend_dim"]
         self.ctx_size = lm_config["ctx_size"]
 
-        self.E = Tensor.normal(self.vocab_size, self.embeeding_dim, mean=0, std=1)
+        self.E = Tensor.normal(self.vocab_size, self.embeeding_dim, mean=0, std=0.05)
         self.lin1 = nn.Linear(self.ctx_size * self.embeeding_dim, self.hiddend_dim)
         self.lin2 = nn.Linear(self.hiddend_dim, self.vocab_size) 
     
@@ -47,6 +47,7 @@ class BengioLM(AutoregressiveLanguageModel):
         self.epochs = config["training"]["epochs"]
         self.batch_size = config["training"]["batch_size"]
         self.num_windows = self.batch_size // self.ctx_size
+        self.eval_steps = config["training"]["eval_steps"]
 
         self.opt = SGD(nn.state.get_parameters(self.lm), lr=config["training"]["lr"])     
 
@@ -76,8 +77,9 @@ class BengioLM(AutoregressiveLanguageModel):
         load_state_dict(self.lm, state_dict)
 
     
-    def train(self, corpus):
+    def train(self, corpus, val_corpus=None):
         Tensor.manual_seed(42)
+        ppl = float('inf')
 
         print(f"[INFO] used device: {Device.DEFAULT}")
         print(f"[INFO] vocabulary size: {len(self.vocab)}")
@@ -89,6 +91,8 @@ class BengioLM(AutoregressiveLanguageModel):
 
         with Context(TRAINING=1):
             for epoch in range(self.epochs):
+                epoch_loss, n_batches = 0.0, 0
+
                 progress_bar = tqdm(
                     range(0, len(corpus), self.num_windows*self.ctx_size+1), 
                     desc=f"Epoch {epoch+1}",
@@ -96,13 +100,28 @@ class BengioLM(AutoregressiveLanguageModel):
                 )
 
                 for i in progress_bar:
-                    block_t = Tensor(corpus[i:i+ (self.num_windows * self.ctx_size+1)]) # (num_windows*ctx,)
-                    loss =  self._train_step(block_t)
+                    block_t = Tensor(corpus[i:i + (self.num_windows * self.ctx_size+1)])
+                    loss = self._train_step(block_t)
+
+                    loss_val = loss.item()
+                    epoch_loss += loss_val
+                    n_batches += 1
+                    train_ppl = math.exp(epoch_loss / n_batches)  
+
+                    msg = (
+                        f"Epoch {epoch+1} | Loss: {loss_val:.3f} | "
+                        f"train_ppl: {train_ppl:.2f} | eval_ppl: {ppl:.2f}"
+                    )
 
                     if i % 100 == 0:
-                        progress_bar.set_description(
-                            f"Epoch {epoch+1} | Loss: {loss.item():.3f}"
-                        )
+                        progress_bar.set_description(msg)
+
+                    if val_corpus is not None and i % self.eval_steps == 0:
+                        logp = self.log_probability(val_corpus)
+                        n_pred = len(val_corpus) - self.ctx_size
+                        ppl = math.exp(-logp / n_pred)
+
+                print(f"[Epoch {epoch+1}] train_ppl: {math.exp(epoch_loss / n_batches):.2f} | eval_ppl: {ppl:.2f} | epoch_loss: {epoch_loss/n_batches}")
 
         self._save_model_weights()
 

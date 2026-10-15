@@ -20,7 +20,8 @@
             "training" : {
                 "epochs" : 10,
                 "batch_size" : 256,
-                "lr" : 0.1
+                "lr" : 0.3,
+                "eval_steps" : 500 
             }
         }
     },
