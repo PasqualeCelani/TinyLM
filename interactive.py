@@ -1,5 +1,5 @@
 from tokenizer import Tokenizer
-import sys, shutil
+import sys, shutil, threading, time, termios
 from models import build_model
 import random
 from decoding import build_decoder
@@ -53,6 +53,40 @@ def clear_region(top, bottom):
     sys.stdout.write(f"\033[{top};1H\033[{height}S\033[{top};1H")
     sys.stdout.flush()
 
+def spin_until(done, prefix="TinyLM: thinking "):
+    SPINNER_FRAMES = ["\\", "|", "/", "-"]
+    i = 0
+    while not done.is_set():
+        sys.stdout.write("\r" + prefix + SPINNER_FRAMES[i % len(SPINNER_FRAMES)])
+        sys.stdout.flush()
+        i += 1
+        time.sleep(0.1)
+    sys.stdout.write("\r" + " " * (len(prefix) + 1) + "\r")
+    sys.stdout.flush()
+
+def lock_input():
+    saved_termios = None
+    try:
+        fd = sys.stdin.fileno()
+        saved_termios = termios.tcgetattr(fd)
+        termios.tcflush(fd, termios.TCIFLUSH)
+        locked = list(saved_termios)
+        locked[3] &= ~termios.ECHO
+        termios.tcsetattr(fd, termios.TCSANOW, locked)
+    except termios.error:
+        pass
+    return saved_termios
+
+
+def unlock_input(saved_termios):
+    try:
+        fd = sys.stdin.fileno()
+        termios.tcflush(fd, termios.TCIFLUSH)
+        if saved_termios is not None:
+            termios.tcsetattr(fd, termios.TCSANOW, saved_termios)
+    except termios.error:
+        pass
+
 
 def main():
     config = load_config("./config.json")
@@ -73,10 +107,11 @@ def main():
     sys.stdout.write("\033[2J\033[H")
     draw_hero()
     init_screen(14, 3)                      
-    draw_footer()                      
+    draw_footer()      
+
+    saved_termios = None                
 
     while True:
-
         user_input = input("User: ")
 
         if user_input == ":q": 
@@ -111,10 +146,25 @@ def main():
             print(random.choice(insert_text_messages), end=" ", flush=True)
             print("\n")
             continue
+        
+        saved_termios = lock_input()
+        first_token_done = threading.Event()
+        spinner = threading.Thread(
+            target=spin_until, args=(first_token_done,), daemon=True
+        )
+        spinner.start()
+
+        is_first_token = True
 
         for _ in range(decoding_max_token):
             dist = model.next_token_distribution(generated)
             next_id = decoder(dist)
+
+            if is_first_token:
+                first_token_done.set()
+                spinner.join()
+                print("TinyLM: ", end=" ", flush=True)
+                is_first_token = False
 
             if next_id is None or V["<||start||>"] == next_id:
                 fallback_response_messages = [
@@ -133,6 +183,7 @@ def main():
             print(id_to_token[next_id], end=" ", flush=True)
             generated.append(next_id) 
 
+        unlock_input(saved_termios)
         print("\n")
 
 
