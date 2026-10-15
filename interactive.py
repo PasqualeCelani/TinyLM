@@ -124,7 +124,7 @@ def main():
             clear_region(14 + 1, size.lines - 3)
             continue
 
-        text = "<||user||> " + user_input.lower() + "<||bot||>"
+        text = "<||user||> " + user_input.lower() + " <||bot||>"
         
         row = tokenizer.tokenize_text(text, merge_rules, V)[0]
         

@@ -5,6 +5,8 @@ from tinygrad.nn.optim import SGD
 from tinygrad.nn.state import safe_save, get_state_dict, safe_load, load_state_dict
 import math
 from tqdm import tqdm
+import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
 
 class BengioLMModel():
     def __init__(self, lm_config):
@@ -58,6 +60,11 @@ class BengioLM(AutoregressiveLanguageModel):
         self.opt.zero_grad()
         loss.backward()
         return loss.realize(*self.opt.schedule_step()) 
+    
+    @TinyJit
+    def _eval_step(self, X_t, Y_t):
+        p = self.lm(X_t)                     # (vocab, B) log-probs
+        return p[Y_t, Tensor.arange(X_t.shape[0])].sum()
 
     def _save_model_weights(self):
         state_dict = get_state_dict(self.lm)
@@ -116,21 +123,29 @@ class BengioLM(AutoregressiveLanguageModel):
 
     def log_probability(self, text):
         ctx = self.ctx_size
-
         if len(text) <= ctx:
             return 0.0
 
-        windows = Tensor([text[i - ctx:i] for i in range(ctx, len(text))])
-        targets = Tensor([text[i] for i in range(ctx, len(text))])
+        flat = np.asarray(text, dtype=np.int32)
+        X = sliding_window_view(flat, ctx)    # (n, ctx)
+        Y = flat[ctx:]
+        n = Y.shape[0]
 
-        total = 0.0
-        B = max(self.num_windows, 1)
-        for i in range(0, windows.shape[0], B):
-            x = windows[i:i + B]          # (b, ctx)
-            y = targets[i:i + B]          # (b,)
-            p = self.lm(x)                # (vocab, b) log-probs
-            idx = Tensor.arange(x.shape[0])
-            total += p[y, idx].sum().item()
+        B = 1024                             
+        parts = []
+        for i in range(0, n - B + 1, B):
+            x = Tensor(np.ascontiguousarray(X[i:i + B]))
+            y = Tensor(Y[i:i + B])
+            parts.append(self._eval_step(x, y))
 
-        return total
+        total = sum(parts)                  
+
+        r = n % B                           
+        if r:
+            x = Tensor(np.ascontiguousarray(X[n - r:]))
+            y = Tensor(Y[n - r:])
+            p = self.lm(x)
+            total = total + p[y, Tensor.arange(r)].sum()
+
+        return total.item()                 
            
