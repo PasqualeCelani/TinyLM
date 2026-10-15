@@ -20,17 +20,15 @@ def main():
 
     packed_corpus = pack_corpus(rows, V)
 
-    print("[INFO] training...")
-    model_config = config["model"]["n-gram"]
-    model = build_model("ngram", V, model_config)
-    model.train(packed_corpus)
-    print("[SUCESS] training have been completed.")
+    model_config = config["model"]["bengiolm"]
+    model = build_model("bengiolm", V, model_config)
+    model.load_model_weights("./weights/model.safetensors")
 
     rows = tokenizer.get_text_from_parquet(config["tokenizer"]["validation_dataset_path"])
     packed_text = pack_corpus(rows, V)
     
     logp = model.log_probability(packed_text)
-    n_predicted = len(packed_text) - getattr(model, "n", 1)
+    n_predicted = len(packed_text) - model.get_context_size()
     perplexity =  math.exp(-logp / n_predicted)
 
     

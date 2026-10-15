@@ -111,5 +111,26 @@ class BengioLM(AutoregressiveLanguageModel):
             for w_id in self.vocab.values()
         }
 
+    def get_context_size(self):
+        return self.ctx_size+1
+
     def log_probability(self, text):
-        pass
+        ctx = self.ctx_size
+
+        if len(text) <= ctx:
+            return 0.0
+
+        windows = Tensor([text[i - ctx:i] for i in range(ctx, len(text))])
+        targets = Tensor([text[i] for i in range(ctx, len(text))])
+
+        total = 0.0
+        B = max(self.num_windows, 1)
+        for i in range(0, windows.shape[0], B):
+            x = windows[i:i + B]          # (b, ctx)
+            y = targets[i:i + B]          # (b,)
+            p = self.lm(x)                # (vocab, b) log-probs
+            idx = Tensor.arange(x.shape[0])
+            total += p[y, idx].sum().item()
+
+        return total
+           

@@ -40,6 +40,9 @@ class NGram(AutoregressiveLanguageModel):
             w_id: self._prob(context + (w_id,))
             for w_id in self.vocab.values()
         }
+    
+    def get_context_size(self):
+        return self.n-1
 
     def log_probability(self, text):
         total = 0.0

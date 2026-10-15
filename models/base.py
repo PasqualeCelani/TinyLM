@@ -18,3 +18,7 @@ class AutoregressiveLanguageModel(ABC):
     @abstractmethod
     def log_probability(self, text : List[int]):
         """Returns total log probability of the current text"""
+    
+    @abstractmethod
+    def get_context_size(self) -> int:
+        """returns model context size"""
