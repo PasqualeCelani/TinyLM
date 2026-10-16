@@ -80,6 +80,7 @@ class BengioLM(AutoregressiveLanguageModel):
     def train(self, corpus, val_corpus=None):
         Tensor.manual_seed(42)
         ppl = float('inf')
+        best_ppl = float('inf')
 
         print(f"[INFO] used device: {Device.DEFAULT}")
         print(f"[INFO] vocabulary size: {len(self.vocab)}")
@@ -120,10 +121,13 @@ class BengioLM(AutoregressiveLanguageModel):
                         logp = self.log_probability(val_corpus)
                         n_pred = len(val_corpus) - self.ctx_size
                         ppl = math.exp(-logp / n_pred)
+                        if ppl < best_ppl:
+                            best_ppl = ppl
+                            self._save_model_weights()
 
                 print(f"[Epoch {epoch+1}] train_ppl: {math.exp(epoch_loss / n_batches):.2f} | eval_ppl: {ppl:.2f} | epoch_loss: {epoch_loss/n_batches}")
 
-        self._save_model_weights()
+        
 
     def get_model_param_number(self):
         return sum(math.prod(param.shape) for param in nn.state.get_parameters(self.lm))
