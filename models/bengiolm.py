@@ -47,8 +47,13 @@ class BengioLM(AutoregressiveLanguageModel):
         self.epochs = config["training"]["epochs"]
         self.batch_size = config["training"]["batch_size"]
         self.eval_steps = config["training"]["eval_steps"]
+        self.eval_batch_size = config["training"]["eval_batch_size"]
 
-        self.opt = SGD(nn.state.get_parameters(self.lm), lr=config["training"]["lr"])     
+        self.opt = SGD(
+            nn.state.get_parameters(self.lm), 
+            lr=config["training"]["lr"], 
+            weight_decay=config["training"]["weight_decay"]
+        )     
 
     @TinyJit
     def _train_step(self, block_t):
@@ -164,7 +169,7 @@ class BengioLM(AutoregressiveLanguageModel):
         return self.ctx_size+1
 
     def log_probability(self, blocks):
-        B = 1024
+        B = self.eval_batch_size
         usable = len(blocks) - (len(blocks) % B)
         total, n = 0.0, 0
         for i in range(0, usable, B):
