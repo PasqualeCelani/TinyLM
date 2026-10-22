@@ -15,7 +15,7 @@
             "params" : {
                 "embeeding_dim" : 64,
                 "hiddend_dim" : 128,
-                "ctx_size" : 4
+                "ctx_size" : 6
             },
             "training" : {
                 "epochs" : 10,
@@ -28,7 +28,7 @@
 
     "decoding" : {
         "name" : "sample",
-        "decoding_params" : {"temperature" : 0.3},
+        "decoding_params" : {"temperature" : 0.9},
         "decoding_max_token" : 100
     }
 }

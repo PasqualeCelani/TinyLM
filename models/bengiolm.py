@@ -46,16 +46,15 @@ class BengioLM(AutoregressiveLanguageModel):
 
         self.epochs = config["training"]["epochs"]
         self.batch_size = config["training"]["batch_size"]
-        self.num_windows = self.batch_size // self.ctx_size
         self.eval_steps = config["training"]["eval_steps"]
 
         self.opt = SGD(nn.state.get_parameters(self.lm), lr=config["training"]["lr"])     
 
     @TinyJit
     def _train_step(self, block_t):
-        windows = block_t[:-1].reshape(self.num_windows, self.ctx_size) # (num_windows, ctx)
-        Y = block_t[self.ctx_size::self.ctx_size] # (num_windows,)
-        idx = Tensor.arange(self.num_windows) # (num_windows,)
+        windows = block_t[:, :-1]
+        Y =  block_t[:, -1]
+        idx = Tensor.arange(Y.shape[0])
         p = self.lm(windows)
         loss = -(p[Y, idx].mean())
         self.opt.zero_grad()
@@ -63,9 +62,13 @@ class BengioLM(AutoregressiveLanguageModel):
         return loss.realize(*self.opt.schedule_step()) 
     
     @TinyJit
-    def _eval_step(self, X_t, Y_t):
-        p = self.lm(X_t)                     # (vocab, B) log-probs
-        return p[Y_t, Tensor.arange(X_t.shape[0])].sum()
+    def _eval_step(self, block_t):
+        windows = block_t[:, :-1]
+        Y =  block_t[:, -1]
+        idx = Tensor.arange(Y.shape[0])
+        p = self.lm(windows)
+        loss = -(p[Y, idx].mean())
+        return loss.realize()
 
     def _save_model_weights(self):
         state_dict = get_state_dict(self.lm)
@@ -75,6 +78,15 @@ class BengioLM(AutoregressiveLanguageModel):
     def load_model_weights(self, weight_path):
         state_dict = safe_load(weight_path)
         load_state_dict(self.lm, state_dict)
+
+    def _create_blocks(self, corpus):
+        first_row_np = np.asarray(corpus[0], dtype=np.int32)
+        blocks =  sliding_window_view(first_row_np, self.ctx_size+1)
+        for i in range(1, len(corpus)):
+            row_np = np.asarray(corpus[i], dtype=np.int32)
+            block = sliding_window_view(row_np, self.ctx_size+1)
+            blocks = np.concat((blocks, block), axis=0)
+        return blocks
 
     
     def train(self, corpus, val_corpus=None):
@@ -87,21 +99,29 @@ class BengioLM(AutoregressiveLanguageModel):
         print(f"[INFO] embeeding dimension: {self.embeeding_dim}")
         print(f"[INFO] hidden layer dimension: {self.hiddend_dim}")
         print(f"[INFO] context size: {self.ctx_size}")
-        print(f"[INFO] Number of model parameters: {self.get_model_param_number()}")
+        print(f"[INFO] Number of model parameters: {round(self.get_model_param_number()/1000000, 2)}M")
         print(f"[INFO] batch size: {self.batch_size}")
 
+        blocks = self._create_blocks(corpus)
+
+        if val_corpus is not None:
+            blocks_val = self._create_blocks(val_corpus)
+        
+        rng = np.random.default_rng(42)
         with Context(TRAINING=1):
             for epoch in range(self.epochs):
                 epoch_loss, n_batches = 0.0, 0
-
+                
+                usable = len(blocks) - (len(blocks) % self.batch_size)
+                perm = rng.permutation(usable)
                 progress_bar = tqdm(
-                    range(0, len(corpus), self.num_windows*self.ctx_size+1), 
+                    range(0, usable, self.batch_size),
                     desc=f"Epoch {epoch+1}",
                     unit="batch"
                 )
 
                 for i in progress_bar:
-                    block_t = Tensor(corpus[i:i + (self.num_windows * self.ctx_size+1)])
+                    block_t = Tensor(blocks[perm[i:i + self.batch_size]])
                     loss = self._train_step(block_t)
 
                     loss_val = loss.item()
@@ -118,9 +138,8 @@ class BengioLM(AutoregressiveLanguageModel):
                         progress_bar.set_description(msg)
 
                     if val_corpus is not None and i % self.eval_steps == 0:
-                        logp = self.log_probability(val_corpus)
-                        n_pred = len(val_corpus) - self.ctx_size
-                        ppl = math.exp(-logp / n_pred)
+                        logp = self.log_probability(blocks_val)
+                        ppl = math.exp(logp)
                         if ppl < best_ppl:
                             best_ppl = ppl
                             self._save_model_weights()
@@ -144,31 +163,14 @@ class BengioLM(AutoregressiveLanguageModel):
     def get_context_size(self):
         return self.ctx_size+1
 
-    def log_probability(self, text):
-        ctx = self.ctx_size
-        if len(text) <= ctx:
-            return 0.0
-
-        flat = np.asarray(text, dtype=np.int32)
-        X = sliding_window_view(flat, ctx)    # (n, ctx)
-        Y = flat[ctx:]
-        n = Y.shape[0]
-
-        B = 1024                             
-        parts = []
-        for i in range(0, n - B + 1, B):
-            x = Tensor(np.ascontiguousarray(X[i:i + B]))
-            y = Tensor(Y[i:i + B])
-            parts.append(self._eval_step(x, y))
-
-        total = sum(parts)                  
-
-        r = n % B                           
-        if r:
-            x = Tensor(np.ascontiguousarray(X[n - r:]))
-            y = Tensor(Y[n - r:])
-            p = self.lm(x)
-            total = total + p[y, Tensor.arange(r)].sum()
-
-        return total.item()                 
+    def log_probability(self, blocks):
+        B = 1024
+        usable = len(blocks) - (len(blocks) % B)
+        total, n = 0.0, 0
+        for i in range(0, usable, B):
+            block_t = Tensor(blocks[i:i + B])
+            loss = self._eval_step(block_t).item()
+            total += loss * B
+            n += B
+        return total / n  
            
