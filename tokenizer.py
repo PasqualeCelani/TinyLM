@@ -1,6 +1,6 @@
 import pyarrow.parquet as pq
 import pyarrow as pa
-import re
+import regex as re
 from tqdm import tqdm
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
@@ -9,9 +9,12 @@ from pathlib import Path
 
 class Tokenizer():
 
-    def __init__(self, n_workers=6, special_tokens=["<||start||>",  "<||end||>", "<||pad||>"]):
+    def __init__(self, n_workers=6, special_tokens=["<||start||>",  "<||end||>", "<||pad||>", "<||user||>", "<||bot||>"]):
         self.n_workers = n_workers
         self.special_tokens = special_tokens
+        self.pretoken = re.compile(
+            r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+        )
 
     def get_text_from_parquet(self, filepath):
         try:
@@ -23,9 +26,15 @@ class Tokenizer():
 
     def _count_shard(self, texts):
         local = Counter()
+        special_pattern = "(" + "|".join(
+            re.escape(tok) for tok in sorted(self.special_tokens, key=len, reverse=True)
+        ) + ")"
         for text in texts:
-            for word in re.split(r"\s+", text):
-                local[word] += 1
+            for chunk in re.split(special_pattern, text):
+                if chunk in self.special_tokens:
+                    continue                    
+                for word in self.pretoken.findall(chunk):
+                    local[word] += 1
         return local
 
     def __word_counter_parallel(self, result, chunk_size=10000):
@@ -176,17 +185,26 @@ class Tokenizer():
         rank = {(l, r): (k, nid) for k, (l, r, nid, _) in enumerate(merge_rules)}
         cache = {}
         tokenized_rows = []
+        special_ids = {tok: V[tok] for tok in self.special_tokens}
+
+        special_pattern = "(" + "|".join(
+            re.escape(tok) for tok in sorted(self.special_tokens, key=len, reverse=True)
+        ) + ")"
 
         for text in tqdm(rows, desc="Tokenizing...", disable=not show_progress):
             row_ids = []
-            for word in re.split(r"\s+", text):
-                cached = cache.get(word)
-                if cached is None:
-                    ids = [V[ch] for ch in word]
-                    ids = self.__encode_word(ids, rank)
-                    cached = tuple(ids)    
-                    cache[word] = cached
-                row_ids.extend(cached)
+            for chunk in re.split(special_pattern, text):
+                if chunk in special_ids:
+                    row_ids.append(special_ids[chunk])
+                    continue
+                for word in self.pretoken.findall(chunk):
+                    cached = cache.get(word)
+                    if cached is None:
+                        ids = [V[ch] for ch in word]
+                        ids = self.__encode_word(ids, rank)
+                        cached = tuple(ids)
+                        cache[word] = cached
+                    row_ids.extend(cached)
             tokenized_rows.append(row_ids)
 
         return tokenized_rows
@@ -222,7 +240,7 @@ class Tokenizer():
         return self.__tokenize(lines, merge_rules, V)
     
     def decode(self, ids, id_to_token):
-        return " ".join(id_to_token[i] for i in ids)
+        return "".join(id_to_token[i] for i in ids)
 
     def save_training(self, V, id_to_token, merge_rules):
         data = {

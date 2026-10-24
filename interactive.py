@@ -121,7 +121,7 @@ def main():
         generated = list(ids)
         decoding_max_token = config["decoding"]["decoding_max_token"]
         print("\n")
-        print("TinyLM: ", end=" ", flush=True)
+        print("TinyLM: ", end="", flush=True)
 
         if user_input == "":
             insert_text_messages = [
@@ -132,7 +132,7 @@ def main():
                 "Pop your text in!"
             ]
 
-            print(random.choice(insert_text_messages), end=" ", flush=True)
+            print(random.choice(insert_text_messages), end="", flush=True)
             print("\n")
             continue
         
@@ -152,7 +152,7 @@ def main():
             if is_first_token:
                 first_token_done.set()
                 spinner.join()
-                print("TinyLM: ", end=" ", flush=True)
+                print("TinyLM: ", end="", flush=True)
                 is_first_token = False
 
             if next_id is None or V["<||start||>"] == next_id:
@@ -169,7 +169,7 @@ def main():
             if next_id == V["<||end||>"] or next_id == V["<||bot||>"]:
                 break
 
-            print(id_to_token[next_id], end=" ", flush=True)
+            print(id_to_token[next_id], end="", flush=True)
             generated.append(next_id) 
 
         unlock_input(saved_termios)
