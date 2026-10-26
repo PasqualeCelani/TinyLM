@@ -6,7 +6,9 @@ TinyLM is a small, from-scratch autoregressive language-model playground. It inc
 - An `n-gram` model and a small Bengio-style neural LM implemented with [tinygrad](https://github.com/tinygrad/tinygrad).
 - A terminal chat interface, configurable sampling, and scripts for preparing parquet datasets.
 
-The bundled dataset is a tiny "party host" conversation corpus.
+The tested dataset is a tiny "party host" conversation corpus.
+
+<img src="https://github.com/PasqualeCelani/TinyLM/blob/main/showcase.png?raw=true" width="100%">
 
 ## Install
 
