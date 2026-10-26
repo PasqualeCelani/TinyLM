@@ -15,10 +15,10 @@
             "params" : {
                 "embeeding_dim" : 64,
                 "hiddend_dim" : 128,
-                "ctx_size" : 6
+                "ctx_size" : 8
             },
             "training" : {
-                "epochs" : 20,
+                "epochs" : 3,
                 "batch_size" : 256,
                 "lr" : 0.3,
                 "weight_decay" : 1e-4,
@@ -31,7 +31,7 @@
 
     "decoding" : {
         "name" : "sample",
-        "decoding_params" : {"temperature" : 0.3},
+        "decoding_params" : {"temperature" : 0.8},
         "decoding_max_token" : 100
     }
 }
