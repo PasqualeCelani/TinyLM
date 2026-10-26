@@ -3,7 +3,7 @@
 TinyLM is a small, from-scratch autoregressive language-model playground. It includes:
 
 - A BPE tokenizer with special chat tokens.
-- An `n-gram` model and a small Bengio-style neural LM implemented with [tinygrad](https://github.com/tinygrad/tinygrad).
+- An `n-gram` model and a small Bengio-style neural LM [1] implemented with [tinygrad](https://github.com/tinygrad/tinygrad).
 - A terminal chat interface, configurable sampling, and scripts for preparing parquet datasets.
 
 The tested dataset is a tiny "party host" conversation corpus.
@@ -198,6 +198,8 @@ util/                    dataset conversion, tokenization, token counting
 dataset/                 source JSONL and generated parquet files
 weights/                 model weights used by interactive.py
 ```
+## References
+[1] Bengio, Yoshua, et al. "A neural probabilistic language model." Journal of machine learning research 3.Feb (2003): 1137-1155.
 
 ## License 
 This project is released under the MIT License.
