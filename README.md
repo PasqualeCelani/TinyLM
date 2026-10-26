@@ -198,3 +198,6 @@ util/                    dataset conversion, tokenization, token counting
 dataset/                 source JSONL and generated parquet files
 weights/                 model weights used by interactive.py
 ```
+
+## License 
+This project is released under the MIT License.
