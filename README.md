@@ -76,7 +76,7 @@ PYTHONPATH=../.. python ../../util/tokenize_dataset.py \
   -nw 6 \
   -m 15000 \
   -i ../party-dataset-train.parquet \
-  -s ./party-dataset-train.parquet
+  -s .
 ```
 
 This produces:
@@ -89,7 +89,7 @@ Then tokenize validation with the already-trained tokenizer:
 ```bash
 PYTHONPATH=../.. python ../../util/tokenize_dataset.py \
   -i ../party-dataset-validation.parquet \
-  -s ./party-dataset-validation.parquet \
+  -s . \
   -t ./tokenizer_train.json
 ```
 
