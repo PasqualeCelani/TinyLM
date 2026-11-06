@@ -22,7 +22,7 @@ class RNN():
     def _orthogonal_init(self, rows, cols, gain = 1.0):
         a = Tensor.randn(rows, cols) 
         q,r = a.qr()
-        d = r.diag()
+        d = r.diagonal()
         ph = d.sign()
         q = q * ph
         return q * gain
