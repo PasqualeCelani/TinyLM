@@ -7,29 +7,45 @@ import math
 from tinygrad.nn.optim import SGD
 
 class RNN():
-    def __init__(self, lm_config):
+    def __init__(self, lm_config, batch_size, pad_index):
         self.vocab_size = lm_config["vocab_size"]
         self.embeeding_dim = lm_config["embeeding_dim"]
         self.hiddend_dim = lm_config["hiddend_dim"]
+        self.batch_size = batch_size
+        self.pad_index = pad_index
 
         self.E = Tensor.normal(self.vocab_size, self.embeeding_dim, mean=0, std=0.001)
         self.W_e = self._orthogonal_init(self.embeeding_dim, self.hiddend_dim)
         self.W_h = self._orthogonal_init(self.hiddend_dim, self.hiddend_dim)
+        self.bias = Tensor.zeros(self.batch_size, self.hiddend_dim)
         
         self.lin = nn.Linear(self.hiddend_dim, self.vocab_size)
 
 
-    def _orthogonal_init(self, rows, cols, gain = 1.0):
-        a = Tensor.randn(rows, cols) 
-        q,r = a.qr()
-        d = r.diagonal()
-        ph = d.sign()
-        q = q * ph
+    def _orthogonal_init(self, rows, cols, gain=1.0):
+        if rows < cols:
+            return self._orthogonal_init(cols, rows, gain).transpose()
+        q, r = Tensor.randn(rows, cols).qr()   
+        q = q[:, :cols]                       
+        q = q * r.diagonal().sign()           
         return q * gain
         
     
     def __call__(self, block_t):
         embedded = self.E[block_t]
+        T = block_t.shape[1]
+        h_t = Tensor.zeros(self.batch_size, self.hiddend_dim)
+        loss_t = 0
+
+        for t in range(T-1):
+            Y_t = block_t[:, t+1]
+            X_t = embedded[:, t, :].squeeze()
+            h_t = (h_t@self.W_h+X_t@self.W_e+self.bias).tanh()
+            logits = self.lin(h_t)
+            loss_t += logits.sparse_categorical_crossentropy(Y_t, ignore_index=self.pad_index)
+        
+        return loss_t/(T-1)
+        
 
 
 @register("rnnlm")
@@ -39,13 +55,13 @@ class RNNLM(AutoregressiveLanguageModel):
         super().__init__(vocab, config)
 
         config["params"]["vocab_size"] = len(vocab)
-        self.lm = RNN(config["params"])
+        self.batch_size = config["training"]["batch_size"]
+        self.lm = RNN(config["params"], self.batch_size, self.vocab["<||pad||>"])
 
         self.embeeding_dim = config["params"]["embeeding_dim"]
         self.hiddend_dim = config["params"]["hiddend_dim"]
 
         self.epochs = config["training"]["epochs"]
-        self.batch_size = config["training"]["batch_size"]
         self.eval_steps = config["training"]["eval_steps"]
         self.eval_batch_size = config["training"]["eval_batch_size"]
 
@@ -68,7 +84,10 @@ class RNNLM(AutoregressiveLanguageModel):
     
     @TinyJit
     def _train_step(self, block_t):
-        pass
+        loss = self.lm(block_t)
+        self.opt.zero_grad()
+        loss.backward()
+        return loss.realize(*self.opt.schedule_step()) 
 
 
     def train(self, corpus, val_corpus=None):
