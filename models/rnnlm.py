@@ -159,5 +159,5 @@ class RNNLM(AutoregressiveLanguageModel):
         pass
 
     def get_context_size(self):
-        pass
+        return self.block_len
     
