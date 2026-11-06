@@ -35,6 +35,7 @@
             "training" : {
                 "epochs" : 1,
                 "batch_size" : 256,
+                "block_len" : 30,
                 "lr" : 0.3,
                 "weight_decay" : 1e-4,
                 "eval_steps" : -1,

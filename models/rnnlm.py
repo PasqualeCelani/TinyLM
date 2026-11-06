@@ -32,19 +32,17 @@ class RNN():
         
     
     def __call__(self, block_t):
-        embedded = self.E[block_t]
+        embedded = self.E[block_t]                   
         T = block_t.shape[1]
-        h_t = Tensor.zeros(self.batch_size, self.hiddend_dim)
-        loss_t = 0
-
-        for t in range(T-1):
-            Y_t = block_t[:, t+1]
-            X_t = embedded[:, t, :].squeeze()
-            h_t = (h_t@self.W_h+X_t@self.W_e+self.bias).tanh()
-            logits = self.lin(h_t)
-            loss_t += logits.sparse_categorical_crossentropy(Y_t, ignore_index=self.pad_index)
-        
-        return loss_t/(T-1)
+        h_t = Tensor.zeros(block_t.shape[0], self.hiddend_dim)
+        hs = []
+        for t in range(T - 1):
+            X_t = embedded[:, t]                      
+            h_t = (h_t @ self.W_h + X_t @ self.W_e + self.bias).tanh()
+            hs.append(h_t)
+        H = hs[0].stack(*hs[1:], dim=1)                
+        logits = self.lin(H)                          
+        return logits.sparse_categorical_crossentropy(block_t[:, 1:], ignore_index=self.pad_index)
         
 
 
@@ -56,6 +54,7 @@ class RNNLM(AutoregressiveLanguageModel):
 
         config["params"]["vocab_size"] = len(vocab)
         self.batch_size = config["training"]["batch_size"]
+        self.block_len = config["training"]["block_len"]
         self.lm = RNN(config["params"], self.batch_size, self.vocab["<||pad||>"])
 
         self.embeeding_dim = config["params"]["embeeding_dim"]
@@ -72,15 +71,16 @@ class RNNLM(AutoregressiveLanguageModel):
         )  
 
     
-    def _pad_corpus(self, corpus):
-        pad_corpus = []
-        max_seq_len = max([len(row) for row in corpus])
+    def _prepare_corpus(self, corpus, block_len):
+        pad = self.vocab["<||pad||>"]
+        blocks = []
         for row in corpus:
-            seq_len = len(row)
-            seq_diff = max_seq_len-seq_len
-            pad_row = row+([self.vocab["<||pad||>"]]*seq_diff)
-            pad_corpus.append(pad_row)
-        return pad_corpus
+            for i in range(0, len(row), block_len):
+                chunk = row[i:i + block_len]
+                if len(chunk) < 2:
+                    continue
+                blocks.append(chunk + [pad] * (block_len - len(chunk)))
+        return np.asarray(blocks)
     
     @TinyJit
     def _train_step(self, block_t):
@@ -101,11 +101,13 @@ class RNNLM(AutoregressiveLanguageModel):
         print(f"[INFO] hidden layer dimension: {self.hiddend_dim}")
         print(f"[INFO] Number of model parameters: {round(self.get_model_param_number()/1000000, 2)}M")
         print(f"[INFO] batch size: {self.batch_size}")
+        print(f"[INFO] block length: {self.block_len}")
 
-        pad_corpus = np.asarray(self._pad_corpus(corpus))
+        pad_corpus = self._prepare_corpus(corpus, self.block_len)
 
         if val_corpus is not None:
-            pad_corpus_val = np.asarray(self._pad_corpus(val_corpus))
+            pad_corpus_val = self._prepare_corpus(val_corpus, self.block_len)
+        
 
         rng = np.random.default_rng(42)
         with Context(TRAINING=1):
