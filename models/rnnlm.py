@@ -10,11 +10,22 @@ class RNN():
     def __init__(self, lm_config):
         self.vocab_size = lm_config["vocab_size"]
         self.embeeding_dim = lm_config["embeeding_dim"]
+        self.hiddend_dim = lm_config["hiddend_dim"]
 
-        self.E = Tensor.normal(self.vocab_size, self.embeeding_dim, mean=0, std=0.02)
+        self.E = Tensor.normal(self.vocab_size, self.embeeding_dim, mean=0, std=0.001)
+        self.W_e = self._orthogonal_init(self.embeeding_dim, self.hiddend_dim)
+        self.W_h = self._orthogonal_init(self.hiddend_dim, self.hiddend_dim)
+        
+        self.lin = nn.Linear(self.hiddend_dim, self.vocab_size)
 
-    def _self_orthogonal_init(tensor):
-        pass
+
+    def _orthogonal_init(self, rows, cols, gain = 1.0):
+        a = Tensor.randn(rows, cols) 
+        q,r = a.qr()
+        d = r.diag()
+        ph = d.sign()
+        q = q * ph
+        return q * gain
         
     
     def __call__(self, block_t):
@@ -31,6 +42,7 @@ class RNNLM(AutoregressiveLanguageModel):
         self.lm = RNN(config["params"])
 
         self.embeeding_dim = config["params"]["embeeding_dim"]
+        self.hiddend_dim = config["params"]["hiddend_dim"]
 
         self.epochs = config["training"]["epochs"]
         self.batch_size = config["training"]["batch_size"]
@@ -67,6 +79,7 @@ class RNNLM(AutoregressiveLanguageModel):
         print(f"[INFO] used device: {Device.DEFAULT}")
         print(f"[INFO] vocabulary size: {len(self.vocab)}")
         print(f"[INFO] embeeding dimension: {self.embeeding_dim}")
+        print(f"[INFO] hidden layer dimension: {self.hiddend_dim}")
         print(f"[INFO] Number of model parameters: {round(self.get_model_param_number()/1000000, 2)}M")
         print(f"[INFO] batch size: {self.batch_size}")
 

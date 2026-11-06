@@ -29,7 +29,8 @@
         },
         "rnnlm" : {
             "params" : {
-                "embeeding_dim" : 64
+                "embeeding_dim" : 64,
+                "hiddend_dim" : 128
             },
             "training" : {
                 "epochs" : 1,
