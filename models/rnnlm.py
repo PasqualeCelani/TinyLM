@@ -1,6 +1,7 @@
 from .base import AutoregressiveLanguageModel
 from . import register
 from tinygrad import Tensor, Device, Context, nn, TinyJit
+from tinygrad.nn.state import safe_save, get_state_dict, safe_load, load_state_dict
 from tqdm import tqdm
 import numpy as np
 import math
@@ -17,7 +18,7 @@ class RNN():
         self.E = Tensor.normal(self.vocab_size, self.embeeding_dim, mean=0, std=0.001)
         self.W_e = self._orthogonal_init(self.embeeding_dim, self.hiddend_dim)
         self.W_h = self._orthogonal_init(self.hiddend_dim, self.hiddend_dim)
-        self.bias = Tensor.zeros(self.batch_size, self.hiddend_dim)
+        self.bias = Tensor.zeros(self.hiddend_dim)
         
         self.lin = nn.Linear(self.hiddend_dim, self.vocab_size)
 
@@ -70,6 +71,14 @@ class RNNLM(AutoregressiveLanguageModel):
             weight_decay=config["training"]["weight_decay"]
         )  
 
+    def _save_model_weights(self):
+        state_dict = get_state_dict(self.lm)
+        safe_save(state_dict, "model.safetensors")
+        print("[SUCCESS] model weight have been saved at ./model.safetensors")
+
+    def load_model_weights(self, weight_path):
+        state_dict = safe_load(weight_path)
+        load_state_dict(self.lm, state_dict)
     
     def _prepare_corpus(self, corpus, block_len):
         pad = self.vocab["<||pad||>"]
@@ -88,6 +97,11 @@ class RNNLM(AutoregressiveLanguageModel):
         self.opt.zero_grad()
         loss.backward()
         return loss.realize(*self.opt.schedule_step()) 
+    
+    @TinyJit
+    def _eval_step(self, block_t):
+        loss = self.lm(block_t)
+        return loss.realize()
 
 
     def train(self, corpus, val_corpus=None):
@@ -155,8 +169,16 @@ class RNNLM(AutoregressiveLanguageModel):
     def next_token_distribution(self, generated):
         pass
 
-    def log_probability(self, blocks):
-        pass
+    def log_probability(self, corpus):
+        usable = len(corpus) - (len(corpus) % self.eval_batch_size)
+        total, n = 0.0, 0
+        for i in range(0, usable, self.eval_batch_size):
+            block_t = Tensor(corpus[i:i + self.eval_batch_size])
+            loss = self._eval_step(block_t).item()  
+            total += loss * self.eval_batch_size
+            n += self.eval_batch_size
+        return total / n  
+
 
     def get_context_size(self):
         return self.block_len
