@@ -3,7 +3,7 @@
 TinyLM is a small, from-scratch autoregressive language-model playground. It includes:
 
 - A BPE tokenizer with special chat tokens.
-- An `n-gram` model and a small Bengio-style neural LM [1] implemented with [tinygrad](https://github.com/tinygrad/tinygrad).
+- An `n-gram` model, a small Bengio-style neural LM [1], and a recurrent neural LM (`rnnlm`) implemented with [tinygrad](https://github.com/tinygrad/tinygrad).
 - A terminal chat interface, configurable sampling, and scripts for preparing parquet datasets.
 
 The tested dataset is a tiny "party host" conversation corpus.
@@ -19,6 +19,20 @@ pip install -r requirements.txt
 ```
 
 Python 3.12 is recommended.
+
+### Bootstrap a new instance
+
+`bootstrap.sh` automates the whole dataset setup on a fresh machine: it downloads the dataset from Hugging Face, creates the virtualenv, installs dependencies, lowercases/converts/tokenizes the corpus, and prints token counts.
+
+```bash
+bash bootstrap.sh [dataset_name] [number_workers] [merges]
+```
+
+Arguments are optional and default to `PasqualeCelani/TinyLMPartyDataset`, `2`, and `15000`. For example:
+
+```bash
+bash bootstrap.sh PasqualeCelani/TinyLMPartyDataset 4 20000
+```
 
 ## Dataset format
 
@@ -115,7 +129,7 @@ From the repository root:
 python train.py
 ```
 
-`train.py` reads `config.json`, loads the tokenizer and tokenized parquet files, adds `<||start||>` / `<||end||>` delimiters, and trains the `bengiolm` model. The best checkpoint (by validation perplexity) is written to `./model.safetensors`.
+`train.py` reads `config.json`, loads the tokenizer and tokenized parquet files, adds `<||start||>` / `<||end||>` delimiters, and trains the `rnnlm` model. The best checkpoint (by validation perplexity) is written to `./model.safetensors`.
 
 To use it in the chat interface, copy it to the expected weights path:
 
@@ -151,6 +165,21 @@ Edit `config.json` to change paths, model size, and decoding behavior.
         "eval_steps": 500,
         "eval_batch_size": 1024
       }
+    },
+    "rnnlm": {
+      "params": {
+        "embeeding_dim": 64,
+        "hiddend_dim": 128
+      },
+      "training": {
+        "epochs": 1,
+        "batch_size": 32,
+        "block_len": 30,
+        "lr": 0.3,
+        "weight_decay": 1e-4,
+        "eval_steps": 300,
+        "eval_batch_size": 32
+      }
     }
   },
   "decoding": {
@@ -164,7 +193,8 @@ Edit `config.json` to change paths, model size, and decoding behavior.
 Key settings:
 
 - `concurent_workers`: tokenizer worker count.
-- `embeeding_dim`, `hiddend_dim`, `ctx_size`: embedding size, hidden layer size, and context window. These key spellings are intentional; keep them as-is.
+- `embeeding_dim`, `hiddend_dim`, `ctx_size`: embedding size, hidden layer size, and context window (`ctx_size` is only used by `bengiolm`). These key spellings are intentional; keep them as-is.
+- `block_len`: sequence length used by `rnnlm` for truncated backpropagation.
 - `epochs`, `batch_size`, `lr`, `weight_decay`: optimization settings.
 - `eval_steps`: evaluate every N batches. Set to `0` to skip validation.
 - `eval_batch_size`: batch size used for evaluation.
@@ -172,7 +202,7 @@ Key settings:
 - `decoding_params.temperature`: sampling temperature for `"sample"` (optionally `top_k`).
 - `decoding_max_token`: maximum tokens generated per reply.
 
-The model registry also contains an `ngram` model (`n`, `delta`), but `train.py` currently instantiates `bengiolm`.
+The model registry also contains an `ngram` model (`n`, `delta`) and `bengiolm`, but `train.py` currently instantiates `rnnlm`.
 
 ## Interactive mode
 
@@ -193,7 +223,7 @@ train.py                 training entry point
 interactive.py           terminal chat interface
 tokenizer.py             BPE tokenizer implementation
 decoding.py              greedy / temperature sampling decoders
-models/                  model registry, n-gram, Bengio LM
+models/                  model registry, n-gram, Bengio LM, RNN LM
 util/                    dataset conversion, tokenization, token counting
 dataset/                 source JSONL and generated parquet files
 weights/                 model weights used by interactive.py

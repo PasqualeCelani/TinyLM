@@ -19,14 +19,14 @@ def main():
     corpus_training = add_delimeters(rows_training, V)
 
 
-    model_config = config["model"]["bengiolm"]
+    model_config = config["model"]["rnnlm"]
 
     corpus_validation = None
     if model_config["training"]["eval_steps"] > 0:
         rows_validation = tokenizer.get_text_from_parquet(config["tokenizer"]["validation_dataset_path"])
         corpus_validation = add_delimeters(rows_validation, V)
     
-    model = build_model("bengiolm", V, model_config)
+    model = build_model("rnnlm", V, model_config)
     model.train(corpus_training, corpus_validation)
 
 if __name__ == "__main__":

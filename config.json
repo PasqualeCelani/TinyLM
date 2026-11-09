@@ -26,6 +26,21 @@
                 "eval_batch_size" :  1024
                 
             }
+        },
+        "rnnlm" : {
+            "params" : {
+                "embeeding_dim" : 64,
+                "hiddend_dim" : 128
+            },
+            "training" : {
+                "epochs" : 1,
+                "batch_size" : 32,
+                "block_len" : 30,
+                "lr" : 0.3,
+                "weight_decay" : 1e-4,
+                "eval_steps" : 300,
+                "eval_batch_size" :  32
+            }
         }
     },
 
