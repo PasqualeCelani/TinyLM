@@ -8,12 +8,11 @@ import math
 from tinygrad.nn.optim import SGD
 
 class RNN():
-    def __init__(self, lm_config, batch_size, pad_index):
+    def __init__(self, lm_config, batch_size):
         self.vocab_size = lm_config["vocab_size"]
         self.embeeding_dim = lm_config["embeeding_dim"]
         self.hiddend_dim = lm_config["hiddend_dim"]
         self.batch_size = batch_size
-        self.pad_index = pad_index
 
         self.E = Tensor.normal(self.vocab_size, self.embeeding_dim, mean=0, std=0.001)
         self.W_e = self._orthogonal_init(self.embeeding_dim, self.hiddend_dim)
@@ -30,6 +29,10 @@ class RNN():
         q = q[:, :cols]                       
         q = q * r.diagonal().sign()           
         return q * gain
+
+    def step(self, h_t, token_t):
+        X_t = self.E[token_t]
+        return (h_t @ self.W_h + X_t @ self.W_e + self.bias).tanh()
         
     
     def __call__(self, block_t):
@@ -43,7 +46,7 @@ class RNN():
             hs.append(h_t)
         H = hs[0].stack(*hs[1:], dim=1)                
         logits = self.lin(H)                          
-        return logits.sparse_categorical_crossentropy(block_t[:, 1:], ignore_index=self.pad_index)
+        return logits
         
 
 
@@ -56,10 +59,11 @@ class RNNLM(AutoregressiveLanguageModel):
         config["params"]["vocab_size"] = len(vocab)
         self.batch_size = config["training"]["batch_size"]
         self.block_len = config["training"]["block_len"]
-        self.lm = RNN(config["params"], self.batch_size, self.vocab["<||pad||>"])
+        self.lm = RNN(config["params"], self.batch_size)
 
         self.embeeding_dim = config["params"]["embeeding_dim"]
         self.hiddend_dim = config["params"]["hiddend_dim"]
+        self.pad_index = self.vocab["<||pad||>"]
 
         self.epochs = config["training"]["epochs"]
         self.eval_steps = config["training"]["eval_steps"]
@@ -93,14 +97,16 @@ class RNNLM(AutoregressiveLanguageModel):
     
     @TinyJit
     def _train_step(self, block_t):
-        loss = self.lm(block_t)
+        logits = self.lm(block_t)
+        loss = logits.sparse_categorical_crossentropy(block_t[:, 1:], ignore_index=self.pad_index)
         self.opt.zero_grad()
         loss.backward()
         return loss.realize(*self.opt.schedule_step()) 
     
     @TinyJit
     def _eval_step(self, block_t):
-        loss = self.lm(block_t)
+        logits = self.lm(block_t)
+        loss = logits.sparse_categorical_crossentropy(block_t[:, 1:], ignore_index=self.pad_index)
         return loss.realize()
 
 
@@ -167,7 +173,16 @@ class RNNLM(AutoregressiveLanguageModel):
         return sum(math.prod(param.shape) for param in nn.state.get_parameters(self.lm))
 
     def next_token_distribution(self, generated):
-        pass
+        seq = generated[-self.get_context_size():]
+        h = Tensor.zeros(1, self.lm.hiddend_dim)
+
+        for tok in seq:
+            h = self.lm.step(h, Tensor([tok]))
+
+        logits = self.lm.lin(h)                               
+        probs  = logits.softmax(axis=-1).reshape(-1).numpy()
+
+        return {w_id: float(probs[w_id]) for w_id in self.vocab.values()}
 
     def log_probability(self, corpus):
         usable = len(corpus) - (len(corpus) % self.eval_batch_size)

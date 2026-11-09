@@ -86,9 +86,9 @@ def main():
 
     tokenizer = Tokenizer(n_workers=config["tokenizer"]["concurent_workers"])
     V, id_to_token, merge_rules = tokenizer.load_training_from_file(config["tokenizer"]["path"])
-    model_config = config["model"]["bengiolm"]
+    model_config = config["model"]["rnnlm"]
 
-    model = build_model("bengiolm", V, model_config)
+    model = build_model("rnnlm", V, model_config)
     model.load_model_weights("./weights/model.safetensors")
 
     decoder = build_decoder(config["decoding"])

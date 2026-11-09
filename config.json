@@ -38,7 +38,7 @@
                 "block_len" : 30,
                 "lr" : 0.3,
                 "weight_decay" : 1e-4,
-                "eval_steps" : 100,
+                "eval_steps" : 300,
                 "eval_batch_size" :  32
             }
         }
