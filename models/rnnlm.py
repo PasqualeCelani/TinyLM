@@ -142,6 +142,7 @@ class RNNLM(AutoregressiveLanguageModel):
                     unit="batch"
                 )
 
+                step = 0
                 for i in progress_bar:
                     block_t = Tensor(pad_corpus[perm[i:i + self.batch_size]])
                     loss = self._train_step(block_t)
@@ -157,15 +158,17 @@ class RNNLM(AutoregressiveLanguageModel):
                         f"train_ppl: {train_ppl:.2f} | eval_ppl: {ppl:.2f}"
                     )
 
-                    if i % 100 == 0:
-                        progress_bar.set_description(msg)
+                    
+                    progress_bar.set_description(msg)
 
-                    if val_corpus is not None and i % self.eval_steps == 0:
+                    if val_corpus is not None and step % self.eval_steps == 0:
                         logp = self.log_probability(pad_corpus_val)
                         ppl = math.exp(logp)
                         if ppl < best_ppl:
                             best_ppl = ppl
                             self._save_model_weights()
+                            
+                    step += 1
 
             print(f"[Epoch {epoch+1}] train_ppl: {math.exp(epoch_loss / n_batches):.2f} | eval_ppl: {ppl:.2f} | epoch_loss: {epoch_loss/n_batches}")
     
