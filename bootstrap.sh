@@ -12,7 +12,7 @@ python -m venv venv
 source ./venv/bin/activate
 pip install -r requirements.txt
 
-hf download "$dataset_name" --repo-type=dataset --local-dir .
+hf download "$dataset_name" --repo-type=dataset --local-dir ./dataset
 
 python ./util/all_lowecase.py -i ./dataset/party-dataset-train.jsonl -s ./dataset/party-dataset-train-lower.jsonl
 python ./util/all_lowecase.py -i ./dataset/party-dataset-validation.jsonl -s ./dataset/party-dataset-validation-lower.jsonl
