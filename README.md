@@ -25,6 +25,9 @@ Python 3.12 is recommended.
 `bootstrap.sh` automates the whole dataset setup on a fresh machine: it downloads the dataset from Hugging Face, creates the virtualenv, installs dependencies, lowercases/converts/tokenizes the corpus, and prints token counts.
 
 ```bash
+# Ensure the hf token is set, if you are accessis a private repository
+export HF_TOKEN="hf_your_actual_token_here"
+
 bash bootstrap.sh [dataset_name] [number_workers] [merges]
 ```
 
