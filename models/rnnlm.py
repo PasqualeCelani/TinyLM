@@ -20,6 +20,7 @@ class RNN():
         self.bias = Tensor.zeros(self.hiddend_dim)
         
         self.lin = nn.Linear(self.hiddend_dim, self.vocab_size)
+        self.norm = nn.BatchNorm(self.hiddend_dim)
 
 
     def _orthogonal_init(self, rows, cols, gain=1.0):
@@ -32,17 +33,21 @@ class RNN():
 
     def step(self, h_t, token_t):
         X_t = self.E[token_t]
-        return (h_t @ self.W_h + X_t @ self.W_e + self.bias).tanh()
+        a_t = h_t @ self.W_h + X_t @ self.W_e + self.bias
+        a_t = self.norm(a_t)
+        return a_t.tanh()
         
     
     def __call__(self, block_t):
-        embedded = self.E[block_t]                   
+        embedded = self.E[block_t]  # (B, T, d)               
         T = block_t.shape[1]
         h_t = Tensor.zeros(block_t.shape[0], self.hiddend_dim)
         hs = []
         for t in range(T - 1):
-            X_t = embedded[:, t]                      
-            h_t = (h_t @ self.W_h + X_t @ self.W_e + self.bias).tanh()
+            X_t = embedded[:, t] # (B, d)               
+            a_t = (h_t @ self.W_h + X_t @ self.W_e + self.bias)
+            a_t = self.norm(a_t)
+            h_t = a_t.tanh()
             hs.append(h_t)
         H = hs[0].stack(*hs[1:], dim=1)                
         logits = self.lin(H)                          
@@ -103,7 +108,7 @@ class RNNLM(AutoregressiveLanguageModel):
         loss.backward()
         return loss.realize(*self.opt.schedule_step()) 
     
-    @TinyJit
+    
     def _eval_step(self, block_t):
         logits = self.lm(block_t)
         loss = logits.sparse_categorical_crossentropy(block_t[:, 1:], ignore_index=self.pad_index)
@@ -144,7 +149,7 @@ class RNNLM(AutoregressiveLanguageModel):
 
                 step = 0
                 for i in progress_bar:
-                    block_t = Tensor(pad_corpus[perm[i:i + self.batch_size]])
+                    block_t = Tensor(pad_corpus[perm[i:i + self.batch_size]]) # (B, T)
                     loss = self._train_step(block_t)
 
                     loss_val = loss.item()
@@ -190,12 +195,13 @@ class RNNLM(AutoregressiveLanguageModel):
     def log_probability(self, corpus):
         usable = len(corpus) - (len(corpus) % self.eval_batch_size)
         total, n = 0.0, 0
-        for i in range(0, usable, self.eval_batch_size):
-            block_t = Tensor(corpus[i:i + self.eval_batch_size])
-            loss = self._eval_step(block_t).item()  
-            total += loss * self.eval_batch_size
-            n += self.eval_batch_size
-        return total / n  
+        with Context(TRAINING=0):                 
+            for i in range(0, usable, self.eval_batch_size):
+                block_t = Tensor(corpus[i:i + self.eval_batch_size])
+                loss = self._eval_step(block_t).item()
+                total += loss * self.eval_batch_size
+                n += self.eval_batch_size
+        return total / n
 
 
     def get_context_size(self):
