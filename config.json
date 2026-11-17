@@ -29,11 +29,11 @@
         },
         "rnnlm" : {
             "params" : {
-                "embeeding_dim" : 64,
-                "hiddend_dim" : 128
+                "embeeding_dim" : 128,
+                "hiddend_dim" : 256
             },
             "training" : {
-                "epochs" : 1,
+                "epochs" : 15,
                 "batch_size" : 32,
                 "block_len" : 30,
                 "lr" : 0.3,
