@@ -47,7 +47,7 @@
 
     "decoding" : {
         "name" : "sample",
-        "decoding_params" : {"temperature" : 0.8},
+        "decoding_params" : {"temperature" : 0.6},
         "decoding_max_token" : 100
     }
 }
