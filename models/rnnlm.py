@@ -20,7 +20,7 @@ class RNN():
         self.bias = Tensor.zeros(self.hiddend_dim)
         
         self.lin = nn.Linear(self.hiddend_dim, self.vocab_size)
-        self.norm = nn.BatchNorm(self.hiddend_dim)
+        self.norm = nn.LayerNorm(self.hiddend_dim)
 
 
     def _orthogonal_init(self, rows, cols, gain=1.0):
@@ -77,7 +77,8 @@ class RNNLM(AutoregressiveLanguageModel):
         self.opt = SGD(
             nn.state.get_parameters(self.lm), 
             lr=config["training"]["lr"], 
-            weight_decay=config["training"]["weight_decay"]
+            weight_decay=config["training"]["weight_decay"],
+            momentum=config["training"]["momentum"]
         )  
 
     def _save_model_weights(self):
