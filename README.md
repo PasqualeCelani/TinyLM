@@ -189,10 +189,12 @@ Edit `configs/base.json` (or `configs/debug.json` for quick runs, selected with 
         "momentum": 0.8,
         "eval_steps": 300,
         "eval_batch_size": 32,
-        "scheduling": {
-          "type": "StepLR",
-          "step_size": 5,
-          "gamma": 0.5
+        "scheduling" : {
+          "type" : "StepLR",
+          "params" : {
+              "step_size" : 5,
+              "gamma" : 0.5
+          }
         }
       }
     }
@@ -211,7 +213,7 @@ Key settings:
 - `embeeding_dim`, `hiddend_dim`, `ctx_size`: embedding size, hidden layer size, and context window (`ctx_size` is only used by `bengiolm`). These key spellings are intentional; keep them as-is.
 - `block_len`: sequence length used by `rnnlm` for truncated backpropagation.
 - `epochs`, `batch_size`, `lr`, `weight_decay`, `momentum`: optimization settings.
-- `scheduling`: `rnnlm` learning-rate schedule (`StepLR` with `step_size` and `gamma`).
+- `scheduling`: `rnnlm` learning-rate schedule (for example, `StepLR` with `step_size` and `gamma`. avaible schedulers in `./models/schedulers.py`).
 - `eval_steps`: evaluate every N batches. Set to `0` to skip validation.
 - `eval_batch_size`: batch size used for evaluation.
 - `decoding.name`: `"greedy"` or `"sample"`.
