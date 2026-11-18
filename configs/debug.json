@@ -43,8 +43,10 @@
                 "eval_batch_size" :  32,
                 "scheduling" : {
                     "type" : "StepLR",
-                    "step_size" : 1,
-                    "gamma" : 0.5
+                    "params" : {
+                        "step_size" : 1,
+                        "gamma" : 0.5
+                    }
                 }
             }
         }

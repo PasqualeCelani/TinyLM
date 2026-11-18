@@ -6,7 +6,7 @@ from tqdm import tqdm
 import numpy as np
 import math
 from tinygrad.nn.optim import SGD
-from .schedulers import StepLR
+from .schedulers import *
 
 class RNN():
     def __init__(self, lm_config, batch_size):
@@ -75,14 +75,22 @@ class RNNLM(AutoregressiveLanguageModel):
         self.eval_steps = config["training"]["eval_steps"]
         self.eval_batch_size = config["training"]["eval_batch_size"]
 
+        self.lr = config["training"]["lr"]
+        self.weight_decay = config["training"]["weight_decay"]
+        self.momentum = config["training"]["momentum"]
+
         self.opt = SGD(
             nn.state.get_parameters(self.lm), 
-            lr=config["training"]["lr"], 
-            weight_decay=config["training"]["weight_decay"],
-            momentum=config["training"]["momentum"]
+            lr=self.lr, 
+            weight_decay=self.weight_decay,
+            momentum=self.momentum
         )  
 
-        self.scheduler = StepLR(self.opt, config["training"]["scheduling"]["step_size"], config["training"]["scheduling"]["gamma"])
+        self.scheduling_type =  config["training"]["scheduling"]["type"]
+        self.scheduling_params = config["training"]["scheduling"]["params"]
+
+        get_class = lambda x: globals()[x]
+        self.scheduler = get_class(self.scheduling_type)(self.opt, **self.scheduling_params)
 
     def _save_model_weights(self):
         state_dict = get_state_dict(self.lm)
@@ -130,6 +138,12 @@ class RNNLM(AutoregressiveLanguageModel):
         print(f"[INFO] Number of model parameters: {round(self.get_model_param_number()/1000000, 2)}M")
         print(f"[INFO] batch size: {self.batch_size}")
         print(f"[INFO] block length: {self.block_len}")
+        print(f"[INFO] initial learning rate: {self.lr}")
+        print(f"[INFO] weight decay: {self.weight_decay}")
+        print(f"[INFO] momentum: {self.momentum}")
+        print(f"[INFO] scheduling type: {self.scheduling_type}")
+        print(f"[INFO] scheduling params: {self.scheduling_params}")
+
 
         pad_corpus = self._prepare_corpus(corpus, self.block_len)
 
@@ -178,6 +192,7 @@ class RNNLM(AutoregressiveLanguageModel):
                             
                     step += 1
 
+                print("learning rate", self.opt.lr.item())
                 self.scheduler.step()
                 print(f"[Epoch {epoch+1}] train_ppl: {math.exp(epoch_loss / n_batches):.2f} | eval_ppl: {ppl:.2f} | epoch_loss: {epoch_loss/n_batches}")
     
