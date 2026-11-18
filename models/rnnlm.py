@@ -84,7 +84,6 @@ class RNNLM(AutoregressiveLanguageModel):
     def _save_model_weights(self):
         state_dict = get_state_dict(self.lm)
         safe_save(state_dict, "model.safetensors")
-        print("[SUCCESS] model weight have been saved at ./model.safetensors")
 
     def load_model_weights(self, weight_path):
         state_dict = safe_load(weight_path)
