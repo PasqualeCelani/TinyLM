@@ -25,7 +25,7 @@ Python 3.12 is recommended.
 `bootstrap.sh` automates the whole dataset setup on a fresh machine: it downloads the dataset from Hugging Face, creates the virtualenv, installs dependencies, lowercases/converts/tokenizes the corpus, and prints token counts.
 
 ```bash
-# Ensure the hf token is set, if you are accessis a private repository
+# Ensure the hf token is set if you are accessing a private repository
 export HF_TOKEN="hf_your_actual_token_here"
 
 bash bootstrap.sh [dataset_name] [number_workers] [merges]
@@ -130,9 +130,11 @@ From the repository root:
 
 ```bash
 python train.py
+# or, with the smaller debug config
+python train.py --debug
 ```
 
-`train.py` reads `config.json`, loads the tokenizer and tokenized parquet files, adds `<||start||>` / `<||end||>` delimiters, and trains the `rnnlm` model. The best checkpoint (by validation perplexity) is written to `./model.safetensors`.
+`train.py` reads `configs/base.json` (`configs/debug.json` with `--debug`), loads the tokenizer and tokenized parquet files, adds `<||start||>` / `<||end||>` delimiters, and trains the `rnnlm` model. The best checkpoint (by validation perplexity) is written to `./model.safetensors`.
 
 To use it in the chat interface, copy it to the expected weights path:
 
@@ -143,7 +145,7 @@ cp ./model.safetensors ./weights/model.safetensors
 
 ## Configuration
 
-Edit `config.json` to change paths, model size, and decoding behavior.
+Edit `configs/base.json` (or `configs/debug.json` for quick runs, selected with `--debug`) to change paths, model size, and decoding behavior.
 
 ```json
 {
@@ -154,6 +156,10 @@ Edit `config.json` to change paths, model size, and decoding behavior.
     "validation_dataset_path": "./dataset/tokenized/party-dataset-validation_tokenized.parquet"
   },
   "model": {
+    "n-gram": {
+      "n": 5,
+      "delta": 1e-8
+    },
     "bengiolm": {
       "params": {
         "embeeding_dim": 64,
@@ -171,23 +177,29 @@ Edit `config.json` to change paths, model size, and decoding behavior.
     },
     "rnnlm": {
       "params": {
-        "embeeding_dim": 64,
-        "hiddend_dim": 128
+        "embeeding_dim": 128,
+        "hiddend_dim": 256
       },
       "training": {
-        "epochs": 1,
+        "epochs": 15,
         "batch_size": 32,
         "block_len": 30,
         "lr": 0.3,
         "weight_decay": 1e-4,
+        "momentum": 0.8,
         "eval_steps": 300,
-        "eval_batch_size": 32
+        "eval_batch_size": 32,
+        "scheduling": {
+          "type": "StepLR",
+          "step_size": 5,
+          "gamma": 0.5
+        }
       }
     }
   },
   "decoding": {
     "name": "sample",
-    "decoding_params": { "temperature": 0.8 },
+    "decoding_params": { "temperature": 0.6 },
     "decoding_max_token": 100
   }
 }
@@ -198,19 +210,22 @@ Key settings:
 - `concurent_workers`: tokenizer worker count.
 - `embeeding_dim`, `hiddend_dim`, `ctx_size`: embedding size, hidden layer size, and context window (`ctx_size` is only used by `bengiolm`). These key spellings are intentional; keep them as-is.
 - `block_len`: sequence length used by `rnnlm` for truncated backpropagation.
-- `epochs`, `batch_size`, `lr`, `weight_decay`: optimization settings.
+- `epochs`, `batch_size`, `lr`, `weight_decay`, `momentum`: optimization settings.
+- `scheduling`: `rnnlm` learning-rate schedule (`StepLR` with `step_size` and `gamma`).
 - `eval_steps`: evaluate every N batches. Set to `0` to skip validation.
 - `eval_batch_size`: batch size used for evaluation.
 - `decoding.name`: `"greedy"` or `"sample"`.
 - `decoding_params.temperature`: sampling temperature for `"sample"` (optionally `top_k`).
 - `decoding_max_token`: maximum tokens generated per reply.
 
-The model registry also contains an `ngram` model (`n`, `delta`) and `bengiolm`, but `train.py` currently instantiates `rnnlm`.
+The model registry also contains an `n-gram` model (`n`, `delta`) and `bengiolm`, but `train.py` currently instantiates `rnnlm`.
 
 ## Interactive mode
 
 ```bash
 python interactive.py
+# or
+python interactive.py --debug
 ```
 
 Requires the tokenizer at the configured path and model weights at `./weights/model.safetensors`. Commands inside the chat:
@@ -221,7 +236,7 @@ Requires the tokenizer at the configured path and model weights at `./weights/mo
 ## Project layout
 
 ```text
-config.json              paths and hyperparameters
+configs/                 paths and hyperparameters (base and debug)
 train.py                 training entry point
 interactive.py           terminal chat interface
 tokenizer.py             BPE tokenizer implementation
