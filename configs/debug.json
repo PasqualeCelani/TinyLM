@@ -29,18 +29,23 @@
         },
         "rnnlm" : {
             "params" : {
-                "embeeding_dim" : 64,
-                "hiddend_dim" : 128
+                "embeeding_dim" : 32,
+                "hiddend_dim" : 64
             },
             "training" : {
-                "epochs" : 1,
+                "epochs" : 3,
                 "batch_size" : 32,
                 "block_len" : 30,
                 "lr" : 0.3,
                 "weight_decay" : 1e-4,
                 "momentum" : 0.8,
                 "eval_steps" : 300,
-                "eval_batch_size" :  32
+                "eval_batch_size" :  32,
+                "scheduling" : {
+                    "type" : "StepLR",
+                    "step_size" : 1,
+                    "gamma" : 0.5
+                }
             }
         }
     },

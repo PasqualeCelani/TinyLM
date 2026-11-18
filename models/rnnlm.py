@@ -6,6 +6,7 @@ from tqdm import tqdm
 import numpy as np
 import math
 from tinygrad.nn.optim import SGD
+from .schedulers import StepLR
 
 class RNN():
     def __init__(self, lm_config, batch_size):
@@ -80,6 +81,8 @@ class RNNLM(AutoregressiveLanguageModel):
             weight_decay=config["training"]["weight_decay"],
             momentum=config["training"]["momentum"]
         )  
+
+        self.scheduler = StepLR(self.opt, config["training"]["scheduling"]["step_size"], config["training"]["scheduling"]["gamma"])
 
     def _save_model_weights(self):
         state_dict = get_state_dict(self.lm)
@@ -175,7 +178,8 @@ class RNNLM(AutoregressiveLanguageModel):
                             
                     step += 1
 
-            print(f"[Epoch {epoch+1}] train_ppl: {math.exp(epoch_loss / n_batches):.2f} | eval_ppl: {ppl:.2f} | epoch_loss: {epoch_loss/n_batches}")
+                self.scheduler.step()
+                print(f"[Epoch {epoch+1}] train_ppl: {math.exp(epoch_loss / n_batches):.2f} | eval_ppl: {ppl:.2f} | epoch_loss: {epoch_loss/n_batches}")
     
     def get_model_param_number(self):
         return sum(math.prod(param.shape) for param in nn.state.get_parameters(self.lm))
