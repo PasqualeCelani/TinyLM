@@ -1,6 +1,7 @@
 from tokenizer import Tokenizer
 from models import build_model
 from util.config import load_config
+import argparse
 
 
 
@@ -9,7 +10,18 @@ def add_delimeters(rows, V):
     
 
 def main():
-    config = load_config("./config.json")
+    parser = argparse.ArgumentParser(description="main training script for language models.")
+
+    parser.add_argument(
+        "-d", "--debug", 
+        help="Debug flag, if true debug configs are used.", 
+        action=argparse.BooleanOptionalAction
+    )
+
+    args = parser.parse_args()
+
+    config_path = "./configs/debug.json" if args.debug else "./configs/base.json"
+    config = load_config(config_path)
 
     tokenizer = Tokenizer(n_workers=config["tokenizer"]["concurent_workers"])
     V, id_to_token, merge_rules = tokenizer.load_training_from_file(config["tokenizer"]["path"])

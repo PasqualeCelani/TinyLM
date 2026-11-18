@@ -1,0 +1,53 @@
+{
+    "tokenizer" : {
+        "concurent_workers" : 6,
+        "path" : "./dataset/tokenized/tokenizer_train.json",
+        "training_dataset_path" : "./dataset/tokenized/party-dataset-train_tokenized.parquet",
+        "validation_dataset_path" : "./dataset/tokenized/party-dataset-validation_tokenized.parquet"
+    },
+
+    "model" : {
+        "n-gram" : {
+            "n" : 5,
+            "delta" : 0.00000001
+        },
+        "bengiolm" : {
+            "params" : {
+                "embeeding_dim" : 64,
+                "hiddend_dim" : 128,
+                "ctx_size" : 8
+            },
+            "training" : {
+                "epochs" : 3,
+                "batch_size" : 256,
+                "lr" : 0.3,
+                "weight_decay" : 1e-4,
+                "eval_steps" : 500,
+                "eval_batch_size" :  1024
+                
+            }
+        },
+        "rnnlm" : {
+            "params" : {
+                "embeeding_dim" : 64,
+                "hiddend_dim" : 128
+            },
+            "training" : {
+                "epochs" : 1,
+                "batch_size" : 32,
+                "block_len" : 30,
+                "lr" : 0.3,
+                "weight_decay" : 1e-4,
+                "momentum" : 0.8,
+                "eval_steps" : 300,
+                "eval_batch_size" :  32
+            }
+        }
+    },
+
+    "decoding" : {
+        "name" : "sample",
+        "decoding_params" : {"temperature" : 0.6},
+        "decoding_max_token" : 100
+    }
+}
