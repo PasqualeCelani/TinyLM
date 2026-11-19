@@ -23,7 +23,7 @@ python ./util/convert-json2parquet.py -i ./dataset/party-dataset-validation-lowe
 PYTHONPATH=. python ./util/tokenize_dataset.py -nw $number_workers -m $merges -i ./dataset/party-dataset-train.parquet -s ./dataset/tokenized
 PYTHONPATH=. python ./util/tokenize_dataset.py -nw $number_workers -m $merges -i ./dataset/party-dataset-validation.parquet -s ./dataset/tokenized -t ./tokenizer_train.json
 
-PYTHONPATH=. python ./util/token_counter.py -nw $number_workers -t ./tokenizer_train.json -i ./dataset/tokenized/party-dataset-train_tokenized.parquet
-PYTHONPATH=. python ./util/token_counter.py -nw $number_workers -t ./tokenizer_train.json -i ./dataset/tokenized/party-dataset-validation_tokenized.parquet
+PYTHONPATH=. python ./util/token_counter.py -i ./dataset/tokenized/party-dataset-train_tokenized.parquet
+PYTHONPATH=. python ./util/token_counter.py -i ./dataset/tokenized/party-dataset-validation_tokenized.parquet
 
 mv ./tokenizer_train.json ./dataset/tokenized
