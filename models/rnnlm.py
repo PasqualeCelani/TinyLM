@@ -86,11 +86,15 @@ class RNNLM(AutoregressiveLanguageModel):
             momentum=self.momentum
         )  
 
-        self.scheduling_type =  config["training"]["scheduling"]["type"]
-        self.scheduling_params = config["training"]["scheduling"]["params"]
+
+        has_scheduling = "scheduling" in config["training"]
+
+        self.scheduling_type =  config["training"]["scheduling"]["type"] if has_scheduling else "None"
+        self.scheduling_params = config["training"]["scheduling"]["params"] if has_scheduling else {}
 
         get_class = lambda x: globals()[x]
-        self.scheduler = get_class(self.scheduling_type)(self.opt, **self.scheduling_params)
+        self.scheduler = get_class(self.scheduling_type)(self.opt, **self.scheduling_params) if has_scheduling else None
+
 
     def _save_model_weights(self):
         state_dict = get_state_dict(self.lm)
@@ -192,8 +196,8 @@ class RNNLM(AutoregressiveLanguageModel):
                             
                     step += 1
 
-                print("learning rate", self.opt.lr.item())
-                self.scheduler.step()
+                if self.scheduler is not None: self.scheduler.step()
+
                 print(f"[Epoch {epoch+1}] train_ppl: {math.exp(epoch_loss / n_batches):.2f} | eval_ppl: {ppl:.2f} | epoch_loss: {epoch_loss/n_batches}")
     
     def get_model_param_number(self):
